@@ -12,7 +12,36 @@
   --vp-c-brand-soft: rgba(247, 107, 0, 0.2);
 }
 
-/* Custom styling enhancements */
+/* Hero app icon border & styling */
+.VPHero .image-src {
+  border-radius: 28px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 0 1px rgba(247, 107, 0, 0.3), 0 20px 45px -12px rgba(247, 107, 0, 0.35);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.VPHero .image-src:hover {
+  transform: translateY(-4px) scale(1.02);
+  border-color: var(--vp-c-brand-1);
+  box-shadow: 0 0 0 2px var(--vp-c-brand-1), 0 25px 50px -10px rgba(247, 107, 0, 0.45);
+}
+
+:root:not(.dark) .VPHero .image-src {
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0 0 1px rgba(247, 107, 0, 0.2), 0 16px 36px -10px rgba(247, 107, 0, 0.25);
+}
+
+/* Navbar logo subtle rounding & border */
+.VPNavBarTitle .logo {
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+:root:not(.dark) .VPNavBarTitle .logo {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Feature cards styling enhancements */
 .VPFeature {
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
