@@ -5,6 +5,10 @@ export default defineConfig({
   description: 'High-security, 100% offline 2FA authenticator with Reanimated mascot companions.',
   base: '/simple-otp/',
 
+  markdown: {
+    math: true,
+  },
+
   head: [
     ['link', { rel: 'icon', href: '/simple-otp/favicon.png' }],
     ['meta', { name: 'theme-color', content: '#F76B00' }],

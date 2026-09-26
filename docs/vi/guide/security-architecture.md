@@ -42,7 +42,7 @@ Mật khẩu của bạn + Muối ngẫu nhiên 16 byte
 
 ### 3. Tiêu chuẩn Thuật toán OTP
 
-- **TOTP (RFC 6238)**: Tính toán mã dựa trên bước thời gian 30 giây (mặc định), hỗ trợ các hàm băm **HMAC-SHA-1**, **HMAC-SHA-256**, và **HMAC-SHA-512**.
+- **TOTP (RFC 6238)**: Tính toán bộ đếm bước thời gian $T = \lfloor (T_{now} - T_0) / T_x \rfloor$ (chu kỳ mặc định 30 giây), hỗ trợ các hàm băm **HMAC-SHA-1**, **HMAC-SHA-256**, và **HMAC-SHA-512**.
 - **HOTP (RFC 4226)**: Tính toán mã dựa trên bộ đếm 8-byte big-endian và trích xuất số nguyên 31-bit (Dynamic Truncation).
 - **Chuẩn hóa Base32**: Tuân thủ nghiêm ngặt RFC 4648, tự động loại bỏ khoảng trắng, dấu gạch nối và kiểm tra các bit dư thừa an toàn.
 
