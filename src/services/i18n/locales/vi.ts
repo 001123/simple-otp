@@ -210,7 +210,7 @@ export const vi = {
     academySubtitle: 'Tìm hiểu về bảo mật xác thực 2 bước',
     academyBtn: 'Khám phá các bài học bảo mật',
     offlineGuaranteeTitle: 'Cam kết Offline 100%',
-    offlineGuaranteeDesc: 'Simple OTP v1.0.0 hoàn toàn không sử dụng kết nối mạng, không gửi phân tích dữ liệu, và không lưu trữ đám mây. Mọi khoá OTP được mã hoá an toàn trong phần cứng thiết bị của bạn.',
+    offlineGuaranteeDesc: 'Simple OTP hoàn toàn không sử dụng kết nối mạng, không gửi phân tích dữ liệu, và không lưu trữ đám mây. Mọi khoá OTP được mã hoá an toàn trong phần cứng thiết bị của bạn.',
   },
   backup: {
     exportModalTitle: 'Xuất sao lưu kho mã',

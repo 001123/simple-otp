@@ -212,7 +212,7 @@ export const en: TranslationSchema = {
     academySubtitle: 'Learn about two-factor authentication security',
     academyBtn: 'Explore security lessons',
     offlineGuaranteeTitle: '100% Offline Guarantee',
-    offlineGuaranteeDesc: 'Simple OTP v1.0.0 uses no network connection, sends zero telemetry, and stores no cloud data. All OTP keys are securely encrypted within your device hardware.',
+    offlineGuaranteeDesc: 'Simple OTP uses no network connection, sends zero telemetry, and stores no cloud data. All OTP keys are securely encrypted within your device hardware.',
   },
   backup: {
     exportModalTitle: 'Export Vault Backup',
