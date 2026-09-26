@@ -1,0 +1,61 @@
+name: Deploy Android to Google Play
+
+on:
+  workflow_dispatch:
+    inputs:
+      auto_submit:
+        description: 'Auto submit to Google Play (Internal Testing)'
+        required: true
+        type: boolean
+        default: true
+  push:
+    tags:
+      - 'v*.*.*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    name: Build & Submit Android App
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 2. Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: 3. Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 4. Install dependencies
+        run: npm ci
+
+      - name: 5. Verify Lint & Typecheck
+        run: |
+          npm run lint
+          npm run typecheck
+
+      - name: 6. Setup Google Service Account Key
+        if: ${{ inputs.auto_submit != false }}
+        run: |
+          mkdir -p credentials
+          echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}" > credentials/pc-api-key.json
+
+      - name: 7. EAS Build & Submit to Google Play
+        if: ${{ inputs.auto_submit != false }}
+        run: |
+          eas build --platform android --profile production --auto-submit --non-interactive
+
+      - name: 7b. EAS Build Only (No Submit)
+        if: ${{ inputs.auto_submit == false }}
+        run: |
+          eas build --platform android --profile production --non-interactive

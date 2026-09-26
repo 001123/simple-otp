@@ -42,6 +42,13 @@ example
 /ios
 /android
 
+# Google Play and EAS credentials
+*service-account*.json
+pc-api-key*.json
+api-key*.json
+google-services.json
+credentials/
+
 .agents
 __tests__
 coverage
