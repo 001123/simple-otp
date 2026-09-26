@@ -52,3 +52,7 @@ credentials/
 .agents
 __tests__
 coverage
+
+# VitePress
+docs/.vitepress/cache
+docs/.vitepress/dist
