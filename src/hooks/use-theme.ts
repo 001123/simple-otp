@@ -1,6 +1,5 @@
 /**
- * Learn more about light and dark modes:
- * https://docs.expo.dev/guides/color-schemes/
+ * Hook to access active theme colors based on current system color scheme.
  */
 
 import { Colors } from '@/constants/theme';

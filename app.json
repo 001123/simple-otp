@@ -32,6 +32,26 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      "expo-secure-store",
+      "expo-sharing",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Simple OTP to access your camera to scan 2FA QR codes."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Simple OTP to access your photos to import 2FA QR codes from images."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Simple OTP to use Face ID to unlock your 2FA vault."
+        }
       ]
     ],
     "experiments": {
