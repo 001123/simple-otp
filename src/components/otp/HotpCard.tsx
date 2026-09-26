@@ -14,7 +14,9 @@ import type { OtpAccount } from '@/types/otp';
 import { generateHotp } from '@/services/crypto/otpEngine';
 import { copyWithAutoClear } from '@/services/security/clipboardClear';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Fonts } from '@/constants/theme';
+import { useTranslation } from 'react-i18next';
+import { MoreHorizontal, RefreshCw, Check } from 'lucide-react-native';
+import { SemanticColors, Fonts } from '@/constants/theme';
 
 export interface HotpCardProps {
   account: OtpAccount;
@@ -23,7 +25,9 @@ export interface HotpCardProps {
   onRename?: (account: OtpAccount) => void;
   onDelete?: (account: OtpAccount) => void;
   onExportQr?: (account: OtpAccount) => void;
+  onOptionsPress?: (account: OtpAccount) => void;
   testID?: string;
+  showCopiedToast?: boolean;
 }
 
 export const HotpCard: React.FC<HotpCardProps> = ({
@@ -33,8 +37,11 @@ export const HotpCard: React.FC<HotpCardProps> = ({
   onRename,
   onDelete,
   onExportQr,
+  onOptionsPress,
   testID = `hotp-card-${account.id}`,
+  showCopiedToast = false,
 }) => {
+  const { t } = useTranslation();
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
   const [isIncrementing, setIsIncrementing] = useState<boolean>(false);
@@ -102,19 +109,29 @@ export const HotpCard: React.FC<HotpCardProps> = ({
 
   const confirmDelete = useCallback(() => {
     Alert.alert(
-      'Xoá tài khoản',
-      `Bạn có chắc chắn muốn xoá tài khoản ${account.issuer || account.account}?`,
+      t('cards.deleteConfirmTitle'),
+      t('cards.deleteConfirmMsg', { name: account.issuer || account.account }),
       [
-        { text: 'Huỷ', style: 'cancel' },
-        { text: 'Xoá', style: 'destructive', onPress: () => onDelete?.(account) },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.delete'), style: 'destructive', onPress: () => onDelete?.(account) },
       ]
     );
-  }, [account, onDelete]);
+  }, [account, onDelete, t]);
 
   // Options menu
   const handleOptionsMenu = useCallback(() => {
+    if (onOptionsPress) {
+      onOptionsPress(account);
+      return;
+    }
+
     const title = account.issuer || account.account;
-    const options = ['Huỷ', '✏️ Đổi tên', '📱 Xuất mã QR', '🗑️ Xoá tài khoản'];
+    const options = [
+      t('common.cancel'),
+      t('cards.actions.rename'),
+      t('cards.actions.exportQr'),
+      t('cards.actions.delete'),
+    ];
     const destructiveIndex = 3;
     const cancelIndex = 0;
 
@@ -133,14 +150,14 @@ export const HotpCard: React.FC<HotpCardProps> = ({
         }
       );
     } else {
-      Alert.alert(title, 'Chọn thao tác cho tài khoản này:', [
-        { text: 'Huỷ', style: 'cancel' },
-        { text: '✏️ Đổi tên', onPress: () => onRename?.(account) },
-        { text: '📱 Xuất mã QR', onPress: () => onExportQr?.(account) },
-        { text: '🗑️ Xoá', style: 'destructive', onPress: () => confirmDelete() },
+      Alert.alert(title, `${t('common.edit')}:`, [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('cards.actions.rename'), onPress: () => onRename?.(account) },
+        { text: t('cards.actions.exportQr'), onPress: () => onExportQr?.(account) },
+        { text: t('common.delete'), style: 'destructive', onPress: () => confirmDelete() },
       ]);
     }
-  }, [account, onRename, onExportQr, confirmDelete]);
+  }, [account, onOptionsPress, onRename, onExportQr, confirmDelete, t]);
 
   const initialLetter = (account.issuer || account.account || '?')[0].toUpperCase();
   const cardBg = isDark ? '#1C1D21' : '#FFFFFF';
@@ -161,7 +178,7 @@ export const HotpCard: React.FC<HotpCardProps> = ({
       {/* Header Row */}
       <View style={styles.headerRow}>
         <View style={styles.issuerCluster}>
-          <View style={[styles.avatarBadge, { backgroundColor: '#10B981' }]}>
+          <View style={[styles.avatarBadge, { backgroundColor: SemanticColors.success }]}>
             <Text style={styles.avatarText}>{initialLetter}</Text>
           </View>
           <View style={styles.titleInfo}>
@@ -190,7 +207,7 @@ export const HotpCard: React.FC<HotpCardProps> = ({
             accessibilityRole="button"
             accessibilityLabel="Tuỳ chọn tài khoản"
           >
-            <Text style={[styles.moreText, { color: subtextColor }]}>⋯</Text>
+            <MoreHorizontal size={20} color={subtextColor} strokeWidth={2} />
           </TouchableOpacity>
         </View>
       </View>
@@ -208,9 +225,10 @@ export const HotpCard: React.FC<HotpCardProps> = ({
           <Text style={[styles.codeText, { color: isDark ? '#F9FAFB' : '#1E293B' }]}>
             {formattedCode}
           </Text>
-          {copiedRecently && (
+          {copiedRecently && showCopiedToast && (
             <View style={styles.copiedPill}>
-              <Text style={styles.copiedPillText}>Đã chép! ✓</Text>
+              <Check size={12} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 4 }} />
+              <Text style={styles.copiedPillText}>{t('cards.copiedPill')}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -222,14 +240,14 @@ export const HotpCard: React.FC<HotpCardProps> = ({
           onPress={handleIncrement}
           style={styles.refreshButton}
           accessibilityRole="button"
-          accessibilityLabel="Lấy mã HOTP mới"
+          accessibilityLabel={t('cards.refreshCode')}
         >
           {isIncrementing ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
             <View style={styles.refreshBtnContent}>
-              <Text style={styles.refreshBtnIcon}>🔄</Text>
-              <Text style={styles.refreshBtnText}>Mã mới</Text>
+              <RefreshCw size={15} color="#FFFFFF" strokeWidth={2} style={{ marginRight: 6 }} />
+              <Text style={styles.refreshBtnText}>{t('cards.refreshCode')}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -299,13 +317,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   typeBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    backgroundColor: 'rgba(52, 199, 89, 0.12)',
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
   },
   typeBadgeText: {
-    color: '#10B981',
+    color: SemanticColors.success,
     fontSize: 10.5,
     fontWeight: '700',
   },
@@ -348,7 +366,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   copiedPill: {
-    backgroundColor: '#10B981',
+    backgroundColor: SemanticColors.success,
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 10,
@@ -359,7 +377,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   refreshButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: SemanticColors.success,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,

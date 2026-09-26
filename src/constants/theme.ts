@@ -6,6 +6,28 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
+export const BrandColors = {
+  primary: '#F76B00',
+  primaryLight: '#F88100',
+  primaryDark: '#EE4200',
+  accentYellow: '#FFC820',
+  pearlWhite: '#FFFFFF',
+  blushPink: '#FF8A9E',
+  gradient: {
+    start: '#F88100',
+    end: '#EE4200',
+  },
+} as const;
+
+export const SemanticColors = {
+  success: '#34C759',
+  urgent: '#FF3B30',
+  warning: '#FF9500',
+  countdownNormal: '#F76B00',
+  countdownUrgent: '#FF3B30',
+  neutral: '#8E8E93',
+} as const;
+
 export const Colors = {
   light: {
     text: '#000000',
@@ -13,6 +35,8 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
+    primary: BrandColors.primary,
+    tint: BrandColors.primary,
   },
   dark: {
     text: '#ffffff',
@@ -20,6 +44,8 @@ export const Colors = {
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
+    primary: BrandColors.primary,
+    tint: BrandColors.primaryLight,
   },
 } as const;
 

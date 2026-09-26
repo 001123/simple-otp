@@ -5,6 +5,8 @@ import type {
   MascotPersonaMetadata,
   DialogueSelectionOptions,
 } from '@/types/pet';
+import i18n from '@/services/i18n';
+import { PET_DIALOGUES_EN } from './petDialoguesEn';
 
 export const MASCOT_METADATA: Record<PetId, MascotPersonaMetadata> = {
   'cipher-cat': {
@@ -83,14 +85,14 @@ export const PET_DIALOGUES: Record<PetId, Record<PetState | 'TIPS', PetDialogueI
       { id: 'dog_idle_6', text: 'Em đứng gác ở đây, hacker nào bén mảng tới là em sủa liền!' },
     ],
     COPIED: [
-      { id: 'dog_copy_1', text: 'Gâu gâu! Đã sao chép mã rồi nhé sếp ơi! 🎉' },
+      { id: 'dog_copy_1', text: 'Gâu gâu! Đã sao chép mã rồi nhé sếp ơi!' },
       { id: 'dog_copy_2', text: 'Ngon lành! Mã đã nằm gọn gàng trong bộ nhớ tạm rồi!' },
       { id: 'dog_copy_3', text: 'Em đã tóm gọn mã cho sếp! Dán liền tay đăng nhập nào!' },
       { id: 'dog_copy_4', text: 'Gâu! Nhiệm vụ sao chép hoàn thành xuất sắc 100%!' },
       { id: 'dog_copy_5', text: 'Đã copy mã thành công! Sếp giỏi lắm, tiến lên nào!' },
     ],
     WARNING: [
-      { id: 'dog_warn_1', text: 'Nhanh lên sếp ơi, sắp đổi mã mới rồi kìa! ⏰' },
+      { id: 'dog_warn_1', text: 'Nhanh lên sếp ơi, sắp đổi mã mới rồi kìa!' },
       { id: 'dog_warn_2', text: 'Gâu gâu! Chỉ còn vài giây nữa thôi, khẩn cấp khẩn cấp!' },
       { id: 'dog_warn_3', text: 'Đồng hồ đang đỏ lòm rồi sếp ơi, chớp thời cơ copy ngay!' },
       { id: 'dog_warn_4', text: 'Sắp hết giờ rồi! Nhanh tay lên nào sếp ơi!' },
@@ -122,7 +124,7 @@ export const PET_DIALOGUES: Record<PetId, Record<PetState | 'TIPS', PetDialogueI
       { id: 'bunny_copy_1', text: 'Tớ đã giữ mã cẩn thận trong clipboard cho bạn rồi nè!' },
       { id: 'bunny_copy_2', text: 'Sao chép thành công rồi á! Bạn dán ngay vào biểu mẫu nhé.' },
       { id: 'bunny_copy_3', text: 'Chiếc khiên mã số đã sẵn sàng! Đăng nhập an toàn nha!' },
-      { id: 'bunny_copy_4', text: 'Đã copy rồi! Tớ vui quá hihi~ 🎉' },
+      { id: 'bunny_copy_4', text: 'Đã copy rồi! Tớ vui quá hihi~' },
       { id: 'bunny_copy_5', text: 'Mã đã được sao chép an toàn, bạn yên tâm sử dụng nhé!' },
     ],
     WARNING: [
@@ -153,10 +155,13 @@ export const PET_DIALOGUES: Record<PetId, Record<PetState | 'TIPS', PetDialogueI
 export function getDialoguePool(
   petId: PetId,
   state: PetState,
-  isTap?: boolean
+  isTap?: boolean,
+  lang?: string
 ): PetDialogueItem[] {
-  const safePetId: PetId = PET_DIALOGUES[petId] ? petId : 'cipher-cat';
-  const petCatalog = PET_DIALOGUES[safePetId];
+  const currentLang = lang || i18n.language || 'vi';
+  const catalogSource = currentLang.startsWith('en') ? PET_DIALOGUES_EN : PET_DIALOGUES;
+  const safePetId: PetId = catalogSource[petId] ? petId : 'cipher-cat';
+  const petCatalog = catalogSource[safePetId];
 
   let category: PetState | 'TIPS' = state;
   if (isTap && state === 'IDLE') {
@@ -174,9 +179,9 @@ export function getDialoguePool(
 export function getDialogueItem(
   petId: PetId,
   state: PetState,
-  options?: DialogueSelectionOptions
+  options?: DialogueSelectionOptions & { lang?: string }
 ): PetDialogueItem {
-  const pool = getDialoguePool(petId, state, options?.isTap);
+  const pool = getDialoguePool(petId, state, options?.isTap, options?.lang);
   if (pool.length <= 1) return pool[0];
 
   const filtered = options?.previousId

@@ -7,6 +7,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ChevronRight } from 'lucide-react-native';
+import { BrandColors } from '@/constants/theme';
 import type { SpeechBubbleProps } from '@/types/pet';
 
 export function SpeechBubble({
@@ -115,7 +117,8 @@ export function SpeechBubble({
               { opacity: pressed ? 0.8 : 1 },
             ]}
           >
-            <Text style={styles.actionText}>{actionText} ➔</Text>
+            <Text style={styles.actionText}>{actionText}</Text>
+            <ChevronRight size={13} color="#FFFFFF" strokeWidth={2.5} style={{ marginLeft: 2 }} />
           </Pressable>
         )}
 
@@ -139,13 +142,13 @@ const styles = StyleSheet.create({
     zIndex: 900,
   },
   positionLeft: {
-    right: 88,
-    bottom: 20,
+    right: 100,
+    bottom: 160,
     maxWidth: 220,
   },
   positionTop: {
-    right: 16,
-    bottom: 96,
+    right: 12,
+    bottom: 248,
     maxWidth: 240,
   },
   bubble: {
@@ -179,10 +182,13 @@ const styles = StyleSheet.create({
   actionButton: {
     marginTop: 8,
     alignSelf: 'flex-start',
-    backgroundColor: '#2563EB',
+    backgroundColor: BrandColors.primary,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   actionText: {
     color: '#FFFFFF',

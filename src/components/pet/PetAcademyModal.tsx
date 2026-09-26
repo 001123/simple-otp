@@ -8,8 +8,28 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
+import {
+  GraduationCap,
+  X,
+  Clock,
+  AlertTriangle,
+  Lightbulb,
+  Info,
+  ShieldCheck,
+  Lock,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  Cat,
+  Dog,
+  Rabbit,
+  PawPrint,
+} from 'lucide-react-native';
 import { useTheme } from '@/hooks/use-theme';
-import { ACADEMY_LESSONS } from '@/services/pet/petAcademyData';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { BrandColors, SemanticColors } from '@/constants/theme';
+import { getAcademyLessons } from '@/services/pet/petAcademyData';
 import type { AcademyLesson, PetAcademyModalProps } from '@/types/pet';
 
 export function PetAcademyModal({
@@ -18,21 +38,26 @@ export function PetAcademyModal({
   initialLessonId = 'lesson-1',
   activePetId: _activePetId = 'cipher-cat',
 }: PetAcademyModalProps) {
+  const { t, i18n } = useTranslation();
   const theme = useTheme();
+  const scheme = useColorScheme();
+  const isDark = scheme === 'dark';
   const [selectedLessonIndex, setSelectedLessonIndex] = useState(0);
   const [quizAnswerSelected, setQuizAnswerSelected] = useState<number | null>(null);
 
+  const lessons = getAcademyLessons(i18n.language);
+
   useEffect(() => {
     if (initialLessonId) {
-      const idx = ACADEMY_LESSONS.findIndex((l) => l.id === initialLessonId);
+      const idx = lessons.findIndex((l) => l.id === initialLessonId);
       if (idx !== -1) {
         setSelectedLessonIndex(idx);
         setQuizAnswerSelected(null);
       }
     }
-  }, [initialLessonId, visible]);
+  }, [initialLessonId, visible, lessons]);
 
-  const currentLesson: AcademyLesson = ACADEMY_LESSONS[selectedLessonIndex] || ACADEMY_LESSONS[0];
+  const currentLesson: AcademyLesson = lessons[selectedLessonIndex] || lessons[0];
 
   const handleSelectLesson = (index: number) => {
     setSelectedLessonIndex(index);
@@ -40,7 +65,7 @@ export function PetAcademyModal({
   };
 
   const handleNext = () => {
-    if (selectedLessonIndex < ACADEMY_LESSONS.length - 1) {
+    if (selectedLessonIndex < lessons.length - 1) {
       setSelectedLessonIndex((prev) => prev + 1);
       setQuizAnswerSelected(null);
     } else {
@@ -55,43 +80,100 @@ export function PetAcademyModal({
     }
   };
 
+  const renderCalloutIcon = (icon?: string) => {
+    switch (icon) {
+      case 'warning':
+        return <AlertTriangle size={16} color={isDark ? '#FBBF24' : '#D97706'} strokeWidth={2} />;
+      case 'tip':
+        return <Lightbulb size={16} color={isDark ? '#34C759' : SemanticColors.success} strokeWidth={2} />;
+      case 'shield':
+        return <ShieldCheck size={16} color={BrandColors.primary} strokeWidth={2} />;
+      case 'lock':
+        return <Lock size={16} color={BrandColors.primary} strokeWidth={2} />;
+      case 'info':
+      default:
+        return <Info size={16} color={isDark ? '#F88100' : BrandColors.primary} strokeWidth={2} />;
+    }
+  };
+
+  const getCalloutStyles = (type?: string) => {
+    switch (type) {
+      case 'warning':
+        return {
+          container: {
+            backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+            borderColor: isDark ? 'rgba(245, 158, 11, 0.35)' : 'transparent',
+            borderWidth: isDark ? 1 : 0,
+          },
+          titleColor: isDark ? '#FDE68A' : '#92400E',
+          textColor: isDark ? '#FEF3C7' : '#78350F',
+        };
+      case 'tip':
+        return {
+          container: {
+            backgroundColor: isDark ? 'rgba(52, 199, 89, 0.15)' : '#ECFDF5',
+            borderColor: isDark ? 'rgba(52, 199, 89, 0.35)' : 'transparent',
+            borderWidth: isDark ? 1 : 0,
+          },
+          titleColor: isDark ? '#A7F3D0' : '#065F46',
+          textColor: isDark ? '#D1FAE5' : '#064E3B',
+        };
+      case 'info':
+      default:
+        return {
+          container: {
+            backgroundColor: isDark ? 'rgba(247, 107, 0, 0.16)' : 'rgba(247, 107, 0, 0.08)',
+            borderColor: isDark ? 'rgba(247, 107, 0, 0.35)' : 'rgba(247, 107, 0, 0.15)',
+            borderWidth: 1,
+          },
+          titleColor: isDark ? '#FDBA74' : '#C2410C',
+          textColor: isDark ? '#FED7AA' : '#9A3412',
+        };
+    }
+  };
+
   return (
     <Modal
       visible={visible}
       animationType="slide"
-      transparent={true}
+      presentationStyle="fullScreen"
       onRequestClose={onClose}
-      accessibilityLabel="Pet Academy Modal"
+      accessibilityLabel={t('academy.modalTitle')}
       testID="pet-academy-modal"
     >
-      <View style={styles.overlay}>
-        <SafeAreaView style={[styles.sheetContainer, { backgroundColor: theme.background }]}>
-          {/* Drag Handle */}
-          <View style={styles.dragHandle} />
-
-          {/* Header */}
-          <View style={styles.header}>
-            <View>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>🎓 Pet Academy</Text>
-              <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
-                Bài {currentLesson.index} / {ACADEMY_LESSONS.length} • {currentLesson.badge}
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+        edges={['top', 'bottom', 'left', 'right']}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerTitleContainer}>
+            <View style={styles.headerTitleRow}>
+              <GraduationCap size={22} color={BrandColors.primary} strokeWidth={2} style={{ marginRight: 8 }} />
+              <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
+                {t('academy.modalTitle')}
               </Text>
             </View>
-
-            <TouchableOpacity
-              testID="pet-academy-close-button"
-              onPress={onClose}
-              accessibilityRole="button"
-              accessibilityLabel="Đóng Pet Academy"
-              style={[styles.closeButton, { backgroundColor: theme.backgroundElement }]}
-            >
-              <Text style={[styles.closeButtonText, { color: theme.text }]}>✕</Text>
-            </TouchableOpacity>
+            <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]} numberOfLines={2}>
+              {t('academy.modalSubtitle')}
+            </Text>
           </View>
+
+          <TouchableOpacity
+            testID="pet-academy-close-button"
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
+            style={[styles.closeButton, { backgroundColor: theme.backgroundElement }]}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <X size={20} color={theme.text} strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
 
           {/* Lesson Tab Bar */}
           <View style={styles.tabBar}>
-            {ACADEMY_LESSONS.map((lesson, idx) => {
+            {lessons.map((lesson, idx) => {
               const isActive = idx === selectedLessonIndex;
               return (
                 <TouchableOpacity
@@ -101,12 +183,12 @@ export function PetAcademyModal({
                   style={[
                     styles.tabItem,
                     {
-                      backgroundColor: isActive ? '#3c87f7' : theme.backgroundElement,
+                      backgroundColor: isActive ? BrandColors.primary : theme.backgroundElement,
                     },
                   ]}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: isActive }}
-                  accessibilityLabel={`Bài ${idx + 1}: ${lesson.title}`}
+                  accessibilityLabel={`${t('academy.lessonLabel', { index: idx + 1 })}: ${lesson.title}`}
                 >
                   <Text
                     style={[
@@ -117,7 +199,7 @@ export function PetAcademyModal({
                       },
                     ]}
                   >
-                    Bài {idx + 1}
+                    {t('academy.lessonLabel', { index: idx + 1 })}
                   </Text>
                 </TouchableOpacity>
               );
@@ -133,15 +215,28 @@ export function PetAcademyModal({
           >
             {/* Narrator Banner */}
             <View style={[styles.narratorCard, { backgroundColor: theme.backgroundElement }]}>
-              <Text style={styles.narratorAvatar}>{currentLesson.mascotEmoji}</Text>
+              <View style={styles.narratorAvatarContainer}>
+                {currentLesson.mascotId === 'cipher-cat' ? (
+                  <Cat size={24} color={BrandColors.primary} strokeWidth={2} />
+                ) : currentLesson.mascotId === 'byte-dog' ? (
+                  <Dog size={24} color={BrandColors.primary} strokeWidth={2} />
+                ) : currentLesson.mascotId === 'shield-bunny' ? (
+                  <Rabbit size={24} color={BrandColors.primary} strokeWidth={2} />
+                ) : (
+                  <PawPrint size={24} color={BrandColors.primary} strokeWidth={2} />
+                )}
+              </View>
               <View style={styles.narratorInfo}>
                 <View style={styles.narratorTitleRow}>
                   <Text style={[styles.narratorName, { color: theme.text }]}>
                     {currentLesson.mascotName}
                   </Text>
-                  <Text style={[styles.readingTime, { color: theme.textSecondary }]}>
-                    ⏱️ {currentLesson.readingTime}
-                  </Text>
+                  <View style={styles.readingTimeRow}>
+                    <Clock size={12} color={theme.textSecondary} strokeWidth={2} style={{ marginRight: 4 }} />
+                    <Text style={[styles.readingTime, { color: theme.textSecondary }]}>
+                      {currentLesson.readingTime}
+                    </Text>
+                  </View>
                 </View>
                 <Text style={[styles.narratorSpeech, { color: theme.textSecondary }]}>
                   {`"${currentLesson.introQuote}"`}
@@ -169,26 +264,24 @@ export function PetAcademyModal({
                   {section.content}
                 </Text>
 
-                {section.callout && (
-                  <View
-                    style={[
-                      styles.calloutBox,
-                      section.callout.type === 'warning'
-                        ? styles.calloutWarning
-                        : section.callout.type === 'tip'
-                        ? styles.calloutTip
-                        : styles.calloutInfo,
-                    ]}
-                  >
-                    <View style={styles.calloutHeader}>
-                      <Text style={styles.calloutIcon}>{section.callout.icon || '💡'}</Text>
-                      {section.callout.title && (
-                        <Text style={styles.calloutTitle}>{section.callout.title}</Text>
-                      )}
+                {section.callout && (() => {
+                  const calloutStyle = getCalloutStyles(section.callout.type);
+                  return (
+                    <View style={[styles.calloutBox, calloutStyle.container]}>
+                      <View style={styles.calloutHeader}>
+                        {renderCalloutIcon(section.callout.icon)}
+                        {section.callout.title && (
+                          <Text style={[styles.calloutTitle, { color: calloutStyle.titleColor }]}>
+                            {section.callout.title}
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={[styles.calloutText, { color: calloutStyle.textColor }]}>
+                        {section.callout.text}
+                      </Text>
                     </View>
-                    <Text style={styles.calloutText}>{section.callout.text}</Text>
-                  </View>
-                )}
+                  );
+                })()}
 
                 {section.diagram?.items && (
                   <View style={[styles.diagramBox, { backgroundColor: theme.backgroundElement }]}>
@@ -211,14 +304,29 @@ export function PetAcademyModal({
             ))}
 
             {/* Pro-Tip Box */}
-            <View style={styles.proTipCard}>
-              <Text style={styles.proTipTitle}>🌟 Mẹo từ linh vật</Text>
-              <Text style={styles.proTipContent}>{currentLesson.proTip}</Text>
+            <View
+              style={[
+                styles.proTipCard,
+                {
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB',
+                  borderColor: isDark ? 'rgba(245, 158, 11, 0.35)' : undefined,
+                  borderWidth: isDark ? 1 : 0,
+                  borderLeftWidth: 4,
+                  borderLeftColor: '#F59E0B',
+                },
+              ]}
+            >
+              <Text style={[styles.proTipTitle, { color: isDark ? '#FDE68A' : '#D97706' }]}>
+                {t('academy.proTipTitle')}
+              </Text>
+              <Text style={[styles.proTipContent, { color: isDark ? '#FEF3C7' : '#92400E' }]}>
+                {currentLesson.proTip}
+              </Text>
             </View>
 
             {/* Takeaway Box */}
-            <View style={[styles.takeawayCard, { borderColor: '#3c87f7', backgroundColor: theme.backgroundElement }]}>
-              <Text style={styles.takeawayTitle}>📌 Bài học cốt lõi</Text>
+            <View style={[styles.takeawayCard, { borderColor: BrandColors.primary, backgroundColor: theme.backgroundElement }]}>
+              <Text style={styles.takeawayTitle}>{t('academy.takeawayTitle')}</Text>
               <Text style={[styles.takeawayContent, { color: theme.text }]}>
                 {currentLesson.takeaway}
               </Text>
@@ -227,7 +335,7 @@ export function PetAcademyModal({
             {/* Mini-Quiz */}
             <View style={[styles.quizCard, { backgroundColor: theme.backgroundElement }]}>
               <Text style={[styles.quizHeading, { color: theme.textSecondary }]}>
-                🎯 CÂU HỎI NHANH
+                {t('academy.quizHeading')}
               </Text>
               <Text style={[styles.quizQuestion, { color: theme.text }]}>
                 {currentLesson.quiz.question}
@@ -240,7 +348,7 @@ export function PetAcademyModal({
 
                 if (isSelected) {
                   optionBgColor = opt.isCorrect ? '#D1FAE5' : '#FEE2E2';
-                  optionBorderColor = opt.isCorrect ? '#10B981' : '#EF4444';
+                  optionBorderColor = opt.isCorrect ? SemanticColors.success : SemanticColors.urgent;
                 }
 
                 return (
@@ -260,7 +368,14 @@ export function PetAcademyModal({
                     <Text
                       style={[
                         styles.quizOptionText,
-                        { color: isSelected && opt.isCorrect ? '#065F46' : theme.text },
+                        {
+                          color: isSelected
+                            ? opt.isCorrect
+                              ? '#065F46'
+                              : '#991B1B'
+                            : theme.text,
+                          fontWeight: isSelected ? '600' : '400',
+                        },
                       ]}
                     >
                       {String.fromCharCode(65 + optIdx)}. {opt.text}
@@ -284,8 +399,8 @@ export function PetAcademyModal({
                 >
                   <Text style={styles.quizFeedbackText}>
                     {currentLesson.quiz.options[quizAnswerSelected].isCorrect
-                      ? '🎉 Chính xác tuyệt đối!'
-                      : '💡 Chưa đúng rồi, thử lại nhé!'}
+                      ? t('academy.quizCorrectFeedback')
+                      : t('academy.quizIncorrectFeedback')}
                   </Text>
                   <Text style={styles.quizExplanation}>
                     {currentLesson.quiz.explanation}
@@ -306,22 +421,28 @@ export function PetAcademyModal({
                 {
                   opacity: selectedLessonIndex === 0 ? 0.4 : 1,
                   backgroundColor: theme.backgroundElement,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
                 },
               ]}
-              accessibilityLabel="Bài học trước"
+              accessibilityLabel={t('academy.prevLesson')}
             >
-              <Text style={[styles.navButtonText, { color: theme.text }]}>◀ Bài trước</Text>
+              <ChevronLeft size={16} color={theme.text} strokeWidth={2} />
+              <Text style={[styles.navButtonText, { color: theme.text }]}>
+                {t('academy.prevLesson')}
+              </Text>
             </TouchableOpacity>
 
             <View style={styles.dotIndicatorRow}>
-              {ACADEMY_LESSONS.map((_, idx) => (
+              {lessons.map((_, idx) => (
                 <View
                   key={idx}
                   style={[
                     styles.indicatorDot,
                     {
                       backgroundColor:
-                        idx === selectedLessonIndex ? '#3c87f7' : theme.textSecondary,
+                        idx === selectedLessonIndex ? BrandColors.primary : theme.textSecondary,
                       width: idx === selectedLessonIndex ? 16 : 6,
                     },
                   ]}
@@ -332,51 +453,62 @@ export function PetAcademyModal({
             <TouchableOpacity
               testID="pet-academy-next-button"
               onPress={handleNext}
-              style={[styles.navButton, { backgroundColor: '#3c87f7' }]}
+              style={[
+                styles.navButton,
+                {
+                  backgroundColor: BrandColors.primary,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                },
+              ]}
               accessibilityLabel={
-                selectedLessonIndex === ACADEMY_LESSONS.length - 1
-                  ? 'Hoàn thành bài học'
-                  : 'Bài học tiếp theo'
+                selectedLessonIndex === lessons.length - 1
+                  ? t('academy.finishLesson')
+                  : t('academy.nextLesson')
               }
             >
-              <Text style={[styles.navButtonText, { color: '#ffffff', fontWeight: '700' }]}>
-                {selectedLessonIndex === ACADEMY_LESSONS.length - 1 ? 'Xong 🎓' : 'Tiếp theo ▶'}
-              </Text>
+              {selectedLessonIndex === lessons.length - 1 ? (
+                <>
+                  <Check size={16} color="#ffffff" strokeWidth={2.5} />
+                  <Text style={[styles.navButtonText, { color: '#ffffff', fontWeight: '700' }]}>
+                    {t('academy.finishLesson')}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.navButtonText, { color: '#ffffff', fontWeight: '700' }]}>
+                    {t('academy.nextLesson')}
+                  </Text>
+                  <ChevronRight size={16} color="#ffffff" strokeWidth={2} />
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </SafeAreaView>
-      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    justifyContent: 'flex-end',
-  },
-  sheetContainer: {
-    maxHeight: '90%',
-    minHeight: '75%',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 12,
-  },
-  dragHandle: {
-    width: 48,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: '#8E8E93',
-    alignSelf: 'center',
-    marginBottom: 8,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
+    paddingTop: 8,
     paddingBottom: 12,
+  },
+  headerTitleContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 22,
@@ -389,11 +521,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   closeButtonText: {
     fontSize: 15,
@@ -429,8 +562,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  narratorAvatar: {
-    fontSize: 36,
+  narratorAvatarContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(60, 135, 247, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   narratorInfo: {
     flex: 1,
@@ -444,6 +582,10 @@ const styles = StyleSheet.create({
   narratorName: {
     fontSize: 15,
     fontWeight: '700',
+  },
+  readingTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   readingTime: {
     fontSize: 12,
@@ -489,7 +631,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ECFDF5',
   },
   calloutInfo: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(247, 107, 0, 0.1)',
   },
   calloutHeader: {
     flexDirection: 'row',
@@ -526,7 +668,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   diagramBadge: {
-    backgroundColor: '#3c87f7',
+    backgroundColor: BrandColors.primary,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
@@ -567,7 +709,7 @@ const styles = StyleSheet.create({
   takeawayTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#2563EB',
+    color: BrandColors.primary,
   },
   takeawayContent: {
     fontSize: 13,

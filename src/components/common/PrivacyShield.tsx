@@ -7,12 +7,15 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
+import { Lock, ShieldCheck, Fingerprint } from 'lucide-react-native';
 import { useTheme } from '@/hooks/use-theme';
-import { Spacing } from '@/constants/theme';
+import { Spacing, BrandColors } from '@/constants/theme';
 import { privacyShieldManager } from '@/services/security/privacyShield';
 
 export function PrivacyShield() {
+  const { t } = useTranslation();
   const theme = useTheme();
 
   const [isShielded, setIsShielded] = useState(() => privacyShieldManager.isShieldMounted());
@@ -61,19 +64,23 @@ export function PrivacyShield() {
       <SafeAreaView style={styles.content}>
         {/* Shield Icon / Mascot Emblem */}
         <View style={styles.emblemContainer}>
-          <Text style={styles.emblemEmoji}>{isLocked ? '🔒' : '🛡️'}</Text>
+          {isLocked ? (
+            <Lock size={44} color={BrandColors.primary} strokeWidth={2} />
+          ) : (
+            <ShieldCheck size={44} color={BrandColors.primary} strokeWidth={2} />
+          )}
         </View>
 
         {/* Title */}
         <Text style={[styles.title, { color: theme.text }]}>
-          {isLocked ? 'Khoá bảo vệ Simple OTP' : 'Chế độ riêng tư đang bật'}
+          {isLocked ? t('privacyShield.lockedTitle') : t('privacyShield.hiddenTitle')}
         </Text>
 
         {/* Description */}
         <Text style={[styles.description, { color: theme.textSecondary }]}>
           {isLocked
-            ? 'Kho mã xác thực đã được khoá an toàn. Chạm vào nút bên dưới để mở khoá bằng Face ID / Vân tay / PIN.'
-            : 'Màn hình được che mờ để bảo vệ mã xác thực 2FA khỏi nhìn trộm khi chuyển đổi ứng dụng.'}
+            ? t('privacyShield.lockedDesc')
+            : t('privacyShield.hiddenDesc')}
         </Text>
 
         {/* Unlock Action Button */}
@@ -84,12 +91,15 @@ export function PrivacyShield() {
             disabled={isUnlocking}
             style={styles.unlockBtn}
             accessibilityRole="button"
-            accessibilityLabel="Mở khoá ứng dụng"
+            accessibilityLabel={t('privacyShield.unlockBtn')}
           >
             {isUnlocking ? (
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
-              <Text style={styles.unlockBtnText}>Mở khoá ứng dụng</Text>
+              <View style={styles.unlockBtnContent}>
+                <Fingerprint size={20} color="#ffffff" strokeWidth={2} style={{ marginRight: 8 }} />
+                <Text style={styles.unlockBtnText}>{t('privacyShield.unlockBtn')}</Text>
+              </View>
             )}
           </TouchableOpacity>
         )}
@@ -116,7 +126,7 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+    backgroundColor: 'rgba(247, 107, 0, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.two,
@@ -136,17 +146,22 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   unlockBtn: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: BrandColors.primary,
     paddingHorizontal: Spacing.five,
     paddingVertical: Spacing.three,
     borderRadius: 16,
     width: '100%',
     alignItems: 'center',
-    shadowColor: '#3B82F6',
+    shadowColor: BrandColors.primaryDark,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  unlockBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   unlockBtnText: {
     color: '#ffffff',

@@ -11,12 +11,15 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
+import { X, Flashlight, CameraOff, Image as ImageIcon } from 'lucide-react-native';
 import {
   ScanLockController,
   handleBarcodeScan,
   SCANNER_BARCODE_SETTINGS,
   type ScannerScanResult,
 } from '@/services/ingestion/scanner';
+import { BrandColors } from '@/constants/theme';
 
 export interface CameraScannerModalProps {
   visible: boolean;
@@ -33,6 +36,7 @@ export function CameraScannerModal({
   onOpenGallery,
   testID = 'camera-scanner-modal',
 }: CameraScannerModalProps) {
+  const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
   const [torchEnabled, setTorchEnabled] = useState(false);
   const lockControllerRef = useRef(new ScanLockController(1500));
@@ -54,16 +58,16 @@ export function CameraScannerModal({
           onScanSuccess(scanResult);
         },
         onError: (err) => {
-          Alert.alert('Mã QR không hợp lệ', err.userMessage, [
+          Alert.alert(t('ingestion.scanErrorTitle'), err.userMessage, [
             {
-              text: 'Quét lại',
+              text: t('common.cancel'),
               onPress: () => lockControllerRef.current.reset(),
             },
           ]);
         },
       });
     },
-    [onScanSuccess]
+    [onScanSuccess, t]
   );
 
   return (
@@ -73,23 +77,22 @@ export function CameraScannerModal({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
       testID={testID}
-      accessibilityLabel="Màn hình quét mã QR"
+      accessibilityLabel={t('ingestion.cameraOption')}
     >
       <View style={styles.container}>
         {/* Permission Loading */}
         {!permission ? (
           <View style={styles.permissionContainer} testID={`${testID}-loading`}>
-            <ActivityIndicator size="large" color="#3c87f7" />
-            <Text style={styles.permissionText}>Đang khởi tạo máy ảnh...</Text>
+            <ActivityIndicator size="large" color={BrandColors.primary} />
+            <Text style={styles.permissionText}>{t('common.loading')}</Text>
           </View>
         ) : !permission.granted ? (
           /* Permission Denied UI */
           <SafeAreaView style={styles.permissionContainer} testID={`${testID}-permission-denied`}>
-            <Text style={styles.permissionIcon}>📷</Text>
-            <Text style={styles.permissionTitle}>Yêu cầu quyền truy cập máy ảnh</Text>
+            <CameraOff size={56} color="#9CA3AF" strokeWidth={1.5} style={{ marginBottom: 12 }} />
+            <Text style={styles.permissionTitle}>{t('ingestion.cameraPermissionDeniedTitle')}</Text>
             <Text style={styles.permissionDescription}>
-              Simple OTP cần quyền sử dụng máy ảnh để quét mã QR cấu hình 2FA trực tiếp. Mọi hình ảnh
-              được xử lý 100% ngoại tuyến trên thiết bị của bạn.
+              {t('ingestion.cameraPermissionDeniedDesc')}
             </Text>
 
             {permission.canAskAgain ? (
@@ -98,7 +101,7 @@ export function CameraScannerModal({
                 onPress={requestPermission}
                 testID={`${testID}-grant-permission`}
               >
-                <Text style={styles.primaryButtonText}>Cấp quyền máy ảnh</Text>
+                <Text style={styles.primaryButtonText}>{t('common.confirm')}</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
@@ -106,12 +109,12 @@ export function CameraScannerModal({
                 onPress={() => Linking.openSettings()}
                 testID={`${testID}-open-settings`}
               >
-                <Text style={styles.primaryButtonText}>Mở Cài đặt hệ thống</Text>
+                <Text style={styles.primaryButtonText}>{t('settings.title')}</Text>
               </TouchableOpacity>
             )}
 
             <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelButtonText}>Đóng</Text>
+              <Text style={styles.cancelButtonText}>{t('common.close')}</Text>
             </TouchableOpacity>
           </SafeAreaView>
         ) : (
@@ -134,12 +137,12 @@ export function CameraScannerModal({
                     style={styles.headerIconButton}
                     onPress={onClose}
                     testID={`${testID}-close`}
-                    accessibilityLabel="Đóng máy ảnh"
+                    accessibilityLabel={t('ingestion.cameraClose')}
                   >
-                    <Text style={styles.headerIconText}>✕</Text>
+                    <X size={22} color="#FFFFFF" strokeWidth={2} />
                   </TouchableOpacity>
 
-                  <Text style={styles.headerTitle}>Quét mã QR</Text>
+                  <Text style={styles.headerTitle}>{t('ingestion.cameraOption')}</Text>
 
                   <TouchableOpacity
                     style={[
@@ -148,9 +151,9 @@ export function CameraScannerModal({
                     ]}
                     onPress={() => setTorchEnabled((prev) => !prev)}
                     testID={`${testID}-torch-toggle`}
-                    accessibilityLabel={torchEnabled ? 'Tắt đèn pin' : 'Bật đèn pin'}
+                    accessibilityLabel={torchEnabled ? t('ingestion.cameraTorchOff') : t('ingestion.cameraTorchOn')}
                   >
-                    <Text style={styles.headerIconText}>{torchEnabled ? '🔦' : '⚡'}</Text>
+                    <Flashlight size={22} color={torchEnabled ? '#F59E0B' : '#FFFFFF'} strokeWidth={2} />
                   </TouchableOpacity>
                 </View>
               </SafeAreaView>
@@ -171,7 +174,7 @@ export function CameraScannerModal({
               {/* Bottom Instructions & Secondary Action */}
               <View style={styles.bottomOverlay}>
                 <Text style={styles.instructionText}>
-                  Di chuyển khung ngắm vào giữa mã QR để quét
+                  {t('ingestion.cameraAlignHint')}
                 </Text>
 
                 {onOpenGallery && (
@@ -183,7 +186,8 @@ export function CameraScannerModal({
                     }}
                     testID={`${testID}-gallery-switch`}
                   >
-                    <Text style={styles.galleryButtonText}>🖼️ Quét từ thư viện ảnh</Text>
+                    <ImageIcon size={18} color="#FFFFFF" strokeWidth={2} style={{ marginRight: 8 }} />
+                    <Text style={styles.galleryButtonText}>{t('ingestion.galleryOption')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -223,140 +227,150 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9CA3AF',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
     maxWidth: 320,
   },
-  permissionText: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    marginTop: 8,
-  },
   primaryButton: {
-    backgroundColor: '#3c87f7',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
+    backgroundColor: BrandColors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 280,
     marginTop: 8,
   },
   primaryButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
   },
   cancelButton: {
-    paddingVertical: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
   },
   cancelButtonText: {
     color: '#9CA3AF',
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  permissionText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 12,
   },
   overlayContainer: {
     ...StyleSheet.absoluteFill,
+    flexDirection: 'column',
   },
   topBar: {
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   headerControls: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
   headerIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerIconButtonActive: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#EAB308',
   },
   headerIconText: {
     fontSize: 18,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   reticleRow: {
     flexDirection: 'row',
     height: RETICLE_SIZE,
+    alignItems: 'center',
   },
   sideOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    height: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   reticleFrame: {
     width: RETICLE_SIZE,
     height: RETICLE_SIZE,
     position: 'relative',
-    backgroundColor: 'transparent',
   },
   cornerBracket: {
     position: 'absolute',
-    width: 28,
-    height: 28,
-    borderColor: '#38BDF8',
+    width: 32,
+    height: 32,
+    borderColor: BrandColors.primary,
   },
   bracketTopLeft: {
     top: 0,
     left: 0,
     borderTopWidth: 4,
     borderLeftWidth: 4,
-    borderTopLeftRadius: 8,
+    borderTopLeftRadius: 12,
   },
   bracketTopRight: {
     top: 0,
     right: 0,
     borderTopWidth: 4,
     borderRightWidth: 4,
-    borderTopRightRadius: 8,
+    borderTopRightRadius: 12,
   },
   bracketBottomLeft: {
     bottom: 0,
     left: 0,
     borderBottomWidth: 4,
     borderLeftWidth: 4,
-    borderBottomLeftRadius: 8,
+    borderBottomLeftRadius: 12,
   },
   bracketBottomRight: {
     bottom: 0,
     right: 0,
     borderBottomWidth: 4,
     borderRightWidth: 4,
-    borderBottomRightRadius: 8,
+    borderBottomRightRadius: 12,
   },
   bottomOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 24,
-    paddingBottom: 48,
-    paddingHorizontal: 20,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    gap: 20,
   },
   instructionText: {
     color: '#E5E7EB',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     textAlign: 'center',
+    lineHeight: 20,
   },
   galleryButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     paddingVertical: 12,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 20,
+    borderRadius: 20,
   },
   galleryButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

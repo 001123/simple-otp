@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -12,20 +12,29 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
+import { ShieldCheck, Settings, Search, X, Plus } from 'lucide-react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useVault } from '@/hooks/useVault';
 import { usePetCompanion } from '@/hooks/usePetCompanion';
+import { BrandColors } from '@/constants/theme';
 import type { OtpAccount } from '@/types/otp';
 import { generateDefaultId, type ManualEntryFormValues } from '@/services/ingestion/manualInput';
 import { pickAndScanGalleryQr, type ScannerScanResult } from '@/services/ingestion/scanner';
 import { checkClipboard } from '@/services/ingestion/clipboard';
 import { findDuplicateAccount } from '@/services/ingestion/ingestionRouter';
+import {
+  isLanguageInitialized,
+  setupLocaleAppStateListener,
+} from '@/services/i18n';
 
 import { TotpCard } from '@/components/otp/TotpCard';
 import { HotpCard } from '@/components/otp/HotpCard';
 import { EmptyVaultView } from '@/components/otp/EmptyVaultView';
 import { RenameAccountModal } from '@/components/otp/RenameAccountModal';
+import { AccountActionSheet } from '@/components/otp/AccountActionSheet';
+import { EditAccountModal } from '@/components/otp/EditAccountModal';
 import { IngestionSheet } from '@/components/ingestion/IngestionSheet';
 import { CameraScannerModal } from '@/components/ingestion/CameraScannerModal';
 import { ManualEntryModal } from '@/components/ingestion/ManualEntryModal';
@@ -35,8 +44,10 @@ import { PrivacyShield } from '@/components/common/PrivacyShield';
 import { PetCompanion } from '@/components/pet/PetCompanion';
 import { SpeechBubble } from '@/components/pet/SpeechBubble';
 import { PetAcademyModal } from '@/components/pet/PetAcademyModal';
+import { LanguageWelcomeModal } from '@/components/common/LanguageWelcomeModal';
 
 export default function SingleScreenDashboard() {
+  const { t } = useTranslation();
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
 
@@ -52,6 +63,7 @@ export default function SingleScreenDashboard() {
     hasUrgentTotp,
     refreshAccounts,
     saveAccount,
+    updateAccount,
     deleteAccount,
     renameAccount,
     incrementHotp,
@@ -63,6 +75,8 @@ export default function SingleScreenDashboard() {
   });
 
   // Modal and sheet states
+  const [actionTarget, setActionTarget] = useState<OtpAccount | null>(null);
+  const [editTarget, setEditTarget] = useState<OtpAccount | null>(null);
   const [renameTarget, setRenameTarget] = useState<OtpAccount | null>(null);
   const [isIngestionOpen, setIsIngestionOpen] = useState<boolean>(false);
   const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
@@ -70,6 +84,25 @@ export default function SingleScreenDashboard() {
   const [manualInitialValues, setManualInitialValues] = useState<Partial<ManualEntryFormValues> | undefined>(undefined);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [accountForQr, setAccountForQr] = useState<OtpAccount | null>(null);
+  const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(false);
+
+  // Check language initialization on mount & register appState listener
+  useEffect(() => {
+    let isMounted = true;
+    if (process.env.NODE_ENV !== 'test') {
+      isLanguageInitialized().then((initialized) => {
+        if (isMounted && !initialized) {
+          setShowWelcomeModal(true);
+        }
+      });
+    }
+
+    const cleanupAppStateListener = setupLocaleAppStateListener();
+    return () => {
+      isMounted = false;
+      cleanupAppStateListener();
+    };
+  }, []);
 
   // Copy handler connecting cards to mascot celebration
   const handleCardCopy = useCallback((_code: string) => {
@@ -79,8 +112,8 @@ export default function SingleScreenDashboard() {
   // HOTP counter increment with companion feedback
   const handleHotpIncrement = useCallback(async (account: OtpAccount) => {
     const res = await incrementHotp(account.id);
-    petCompanion.triggerSpeech(`Mã HOTP #${res.newCounter} đã sẵn sàng! 🔄`, 3000);
-  }, [incrementHotp, petCompanion]);
+    petCompanion.triggerSpeech(t('dashboard.hotpReadyToast', { counter: res.newCounter }), 3000);
+  }, [incrementHotp, petCompanion, t]);
 
   // Handle Camera Scan Success
   const handleCameraScanSuccess = useCallback(async (scanResult: ScannerScanResult) => {
@@ -94,8 +127,10 @@ export default function SingleScreenDashboard() {
     if (duplicate) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       Alert.alert(
-        'Tài khoản đã tồn tại',
-        `Tài khoản "${duplicate.issuer ? duplicate.issuer + ' (' + duplicate.account + ')' : duplicate.account}" với khóa này đã có trong kho bảo mật.`
+        t('dashboard.duplicateTitle'),
+        t('dashboard.duplicateMsg', {
+          name: duplicate.issuer ? `${duplicate.issuer} (${duplicate.account})` : duplicate.account,
+        })
       );
       return;
     }
@@ -116,8 +151,8 @@ export default function SingleScreenDashboard() {
     await saveAccount(newAccount);
     petCompanion.triggerCopied();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    petCompanion.triggerSpeech('Đã quét và thêm tài khoản mới thành công! 🐾', 3000);
-  }, [accounts, saveAccount, petCompanion]);
+    petCompanion.triggerSpeech(t('dashboard.scanSuccessToast'), 3000);
+  }, [accounts, saveAccount, petCompanion, t]);
 
   // Handle Gallery Scan Flow
   const handleGalleryScan = useCallback(async () => {
@@ -126,7 +161,7 @@ export default function SingleScreenDashboard() {
       if (outcome.canceled) return;
 
       if (outcome.error) {
-        Alert.alert('Không thể quét mã', outcome.error.userMessage);
+        Alert.alert(t('dashboard.scanErrorTitle'), outcome.error.userMessage);
         return;
       }
 
@@ -140,8 +175,10 @@ export default function SingleScreenDashboard() {
         if (duplicate) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
           Alert.alert(
-            'Tài khoản đã tồn tại',
-            `Tài khoản "${duplicate.issuer ? duplicate.issuer + ' (' + duplicate.account + ')' : duplicate.account}" với khóa này đã có trong kho.`
+            t('dashboard.duplicateTitle'),
+            t('dashboard.duplicateMsgShort', {
+              name: duplicate.issuer ? `${duplicate.issuer} (${duplicate.account})` : duplicate.account,
+            })
           );
           return;
         }
@@ -162,13 +199,13 @@ export default function SingleScreenDashboard() {
         await saveAccount(newAccount);
         petCompanion.triggerCopied();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        petCompanion.triggerSpeech('Đã thêm tài khoản mới từ ảnh chụp! 🐾', 3000);
+        petCompanion.triggerSpeech(t('dashboard.gallerySuccessToast'), 3000);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert('Lỗi thư viện ảnh', msg || 'Không thể mở thư viện ảnh.');
+      Alert.alert(t('dashboard.galleryErrorTitle'), msg || t('dashboard.galleryErrorDefault'));
     }
-  }, [accounts, saveAccount, petCompanion]);
+  }, [accounts, saveAccount, petCompanion, t]);
 
   // Handle Clipboard Ingestion Flow
   const handleClipboardScan = useCallback(async () => {
@@ -177,7 +214,7 @@ export default function SingleScreenDashboard() {
       if (res.detected && res.type === 'uri' && res.parsed) {
         const parsed = res.parsed as Partial<OtpAccount>;
         if (!parsed.account || !parsed.secret) {
-          Alert.alert('Liên kết không hợp lệ', 'Nội dung clipboard không chứa đủ thông tin tài khoản.');
+          Alert.alert(t('dashboard.invalidUriTitle'), t('dashboard.invalidUriMsg'));
           return;
         }
 
@@ -189,8 +226,10 @@ export default function SingleScreenDashboard() {
         if (duplicate) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
           Alert.alert(
-            'Tài khoản đã tồn tại',
-            `Tài khoản "${duplicate.issuer ? duplicate.issuer + ' (' + duplicate.account + ')' : duplicate.account}" đã có trong kho.`
+            t('dashboard.duplicateTitle'),
+            t('dashboard.duplicateMsgShort', {
+              name: duplicate.issuer ? `${duplicate.issuer} (${duplicate.account})` : duplicate.account,
+            })
           );
           return;
         }
@@ -211,30 +250,30 @@ export default function SingleScreenDashboard() {
         await saveAccount(newAccount);
         petCompanion.triggerCopied();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        petCompanion.triggerSpeech('Đã thêm tài khoản từ clipboard! 🐾', 3000);
+        petCompanion.triggerSpeech(t('dashboard.clipboardSuccessToast'), 3000);
       } else if (res.detected && res.type === 'secret' && res.payload) {
         // Open manual entry modal prefilled with secret
         setManualInitialValues({ secret: res.payload });
         setIsManualOpen(true);
       } else {
         Alert.alert(
-          'Không tìm thấy mã OTP',
-          'Không tìm thấy liên kết otpauth:// hoặc khóa bí mật Base32 hợp lệ trong bộ nhớ tạm.'
+          t('dashboard.clipboardNotFoundTitle'),
+          t('dashboard.clipboardNotFoundMsg')
         );
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert('Lỗi Clipboard', msg || 'Không thể đọc nội dung clipboard.');
+      Alert.alert(t('dashboard.clipboardErrorTitle'), msg || t('dashboard.clipboardErrorDefault'));
     }
-  }, [accounts, saveAccount, petCompanion]);
+  }, [accounts, saveAccount, petCompanion, t]);
 
   // Manual save handler
   const handleManualSave = useCallback(async (account: OtpAccount) => {
     await saveAccount(account);
     petCompanion.triggerCopied();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    petCompanion.triggerSpeech('Đã lưu tài khoản mới an toàn! 🐾', 3000);
-  }, [saveAccount, petCompanion]);
+    petCompanion.triggerSpeech(t('dashboard.manualSavedToast'), 3000);
+  }, [saveAccount, petCompanion, t]);
 
   // Color variables
   const bgColor = isDark ? '#000000' : '#F9FAFB';
@@ -252,7 +291,7 @@ export default function SingleScreenDashboard() {
       <View style={[styles.headerContainer, { backgroundColor: headerBg }]}>
         <View style={styles.topRow}>
           <View style={styles.titleCluster}>
-            <Text style={styles.pawIcon}>🐾</Text>
+            <ShieldCheck size={24} color={BrandColors.primary} strokeWidth={2} style={styles.pawIcon} />
             <Text style={[styles.appTitle, { color: textColor }]}>Simple OTP</Text>
             <View style={styles.countBadge}>
               <Text style={styles.countBadgeText}>{accounts.length}</Text>
@@ -262,22 +301,22 @@ export default function SingleScreenDashboard() {
           <TouchableOpacity
             testID="settings-btn"
             accessibilityRole="button"
-            accessibilityLabel="Mở Cài đặt"
+            accessibilityLabel={t('settings.title')}
             onPress={() => setIsSettingsOpen(true)}
             style={styles.settingsBtn}
           >
-            <Text style={styles.settingsIcon}>⚙️</Text>
+            <Settings size={22} color={textColor} strokeWidth={2} />
           </TouchableOpacity>
         </View>
 
         {/* Real-time search bar */}
         <View style={[styles.searchBar, { backgroundColor: searchBg }]}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Search size={18} color={subtextColor} strokeWidth={2} style={styles.searchIcon} />
           <TextInput
             testID="search-input"
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Tìm kiếm theo tên dịch vụ hoặc tài khoản..."
+            placeholder={t('dashboard.searchPlaceholder')}
             placeholderTextColor={subtextColor}
             style={[styles.searchInput, { color: textColor }]}
             autoCapitalize="none"
@@ -289,9 +328,9 @@ export default function SingleScreenDashboard() {
               testID="search-clear-btn"
               onPress={clearSearch}
               style={styles.clearBtn}
-              accessibilityLabel="Xoá tìm kiếm"
+              accessibilityLabel={t('dashboard.clearSearchLabel')}
             >
-              <Text style={[styles.clearBtnText, { color: subtextColor }]}>✕</Text>
+              <X size={16} color={subtextColor} strokeWidth={2} />
             </TouchableOpacity>
           )}
         </View>
@@ -307,7 +346,7 @@ export default function SingleScreenDashboard() {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={refreshAccounts}
-            tintColor="#3B82F6"
+            tintColor={BrandColors.primary}
           />
         }
         ListEmptyComponent={
@@ -329,6 +368,7 @@ export default function SingleScreenDashboard() {
               onRename={(acc) => setRenameTarget(acc)}
               onDelete={(acc) => deleteAccount(acc.id)}
               onExportQr={(acc) => setAccountForQr(acc)}
+              onOptionsPress={setActionTarget}
             />
           ) : (
             <HotpCard
@@ -338,6 +378,7 @@ export default function SingleScreenDashboard() {
               onRename={(acc) => setRenameTarget(acc)}
               onDelete={(acc) => deleteAccount(acc.id)}
               onExportQr={(acc) => setAccountForQr(acc)}
+              onOptionsPress={setActionTarget}
             />
           )
         }
@@ -349,9 +390,9 @@ export default function SingleScreenDashboard() {
         onPress={() => setIsIngestionOpen(true)}
         style={styles.fabButton}
         accessibilityRole="button"
-        accessibilityLabel="Thêm tài khoản 2FA mới"
+        accessibilityLabel={t('ingestion.sheetTitle')}
       >
-        <Text style={styles.fabIcon}>+</Text>
+        <Plus size={28} color="#FFFFFF" strokeWidth={2.5} />
       </TouchableOpacity>
 
       {/* Speech Bubble (Anchored bottom-right, to the left of the pet) */}
@@ -371,7 +412,7 @@ export default function SingleScreenDashboard() {
           petId={petCompanion.petId}
           state={petCompanion.petState}
           onTap={petCompanion.triggerTap}
-          displaySize={72}
+          displaySize={88}
         />
       </View>
 
@@ -405,6 +446,33 @@ export default function SingleScreenDashboard() {
         initialValues={manualInitialValues}
       />
 
+      {/* Account Action Sheet (Bottom Sheet Options Menu) */}
+      <AccountActionSheet
+        visible={Boolean(actionTarget)}
+        account={actionTarget}
+        onClose={() => setActionTarget(null)}
+        onEdit={(acc) => {
+          setActionTarget(null);
+          setEditTarget(acc);
+        }}
+        onExportQr={(acc) => {
+          setActionTarget(null);
+          setAccountForQr(acc);
+        }}
+        onDelete={(acc) => {
+          deleteAccount(acc.id);
+          setActionTarget(null);
+        }}
+      />
+
+      {/* Edit Account Modal */}
+      <EditAccountModal
+        visible={Boolean(editTarget)}
+        account={editTarget}
+        onClose={() => setEditTarget(null)}
+        onSave={updateAccount}
+      />
+
       {/* Rename Account Modal */}
       <RenameAccountModal
         visible={Boolean(renameTarget)}
@@ -434,6 +502,12 @@ export default function SingleScreenDashboard() {
         onClose={petCompanion.closeAcademy}
         initialLessonId={petCompanion.academyLessonId}
         activePetId={petCompanion.petId}
+      />
+
+      {/* Language Welcome Modal for First-Launch / Language Choice */}
+      <LanguageWelcomeModal
+        visible={showWelcomeModal}
+        onComplete={() => setShowWelcomeModal(false)}
       />
     </SafeAreaView>
   );
@@ -470,13 +544,13 @@ const styles = StyleSheet.create({
   },
   countBadge: {
     marginLeft: 8,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    backgroundColor: 'rgba(247, 107, 0, 0.12)',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
   },
   countBadgeText: {
-    color: '#3B82F6',
+    color: BrandColors.primary,
     fontWeight: '700',
     fontSize: 12,
   },
@@ -511,21 +585,21 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    paddingBottom: 140, // Keeps cards clear of FAB & Pet Companion
+    paddingBottom: 256, // Keeps cards clear of FAB & larger Pet Companion
   },
   fabButton: {
     position: 'absolute',
-    right: 24,
-    bottom: 96,
+    right: 28,
+    bottom: 80,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#2563EB',
+    backgroundColor: BrandColors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: '#2563EB',
+        shadowColor: BrandColors.primaryDark,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.35,
         shadowRadius: 8,
@@ -546,8 +620,8 @@ const styles = StyleSheet.create({
   },
   petAnchor: {
     position: 'absolute',
-    right: 16,
-    bottom: 16,
+    right: 12,
+    bottom: 152,
     zIndex: 900,
   },
 });

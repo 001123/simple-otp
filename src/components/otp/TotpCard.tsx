@@ -14,7 +14,9 @@ import { generateTotp, getTotpProgress } from '@/services/crypto/otpEngine';
 import { copyWithAutoClear } from '@/services/security/clipboardClear';
 import { CountdownRing } from './CountdownRing';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Fonts } from '@/constants/theme';
+import { useTranslation } from 'react-i18next';
+import { MoreHorizontal, Copy, Check } from 'lucide-react-native';
+import { BrandColors, SemanticColors, Fonts } from '@/constants/theme';
 
 export interface TotpCardProps {
   account: OtpAccount;
@@ -23,7 +25,9 @@ export interface TotpCardProps {
   onRename?: (account: OtpAccount) => void;
   onDelete?: (account: OtpAccount) => void;
   onExportQr?: (account: OtpAccount) => void;
+  onOptionsPress?: (account: OtpAccount) => void;
   testID?: string;
+  showCopiedToast?: boolean;
 }
 
 export const TotpCard: React.FC<TotpCardProps> = ({
@@ -33,8 +37,11 @@ export const TotpCard: React.FC<TotpCardProps> = ({
   onRename,
   onDelete,
   onExportQr,
+  onOptionsPress,
   testID = `totp-card-${account.id}`,
+  showCopiedToast = false,
 }) => {
+  const { t } = useTranslation();
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
   const [copiedRecently, setCopiedRecently] = useState<boolean>(false);
@@ -95,19 +102,29 @@ export const TotpCard: React.FC<TotpCardProps> = ({
 
   const confirmDelete = useCallback(() => {
     Alert.alert(
-      'Xoá tài khoản',
-      `Bạn có chắc chắn muốn xoá tài khoản ${account.issuer || account.account}? Thao tác này không thể hoàn tác.`,
+      t('cards.deleteConfirmTitle'),
+      t('cards.deleteConfirmMsg', { name: account.issuer || account.account }),
       [
-        { text: 'Huỷ', style: 'cancel' },
-        { text: 'Xoá', style: 'destructive', onPress: () => onDelete?.(account) },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.delete'), style: 'destructive', onPress: () => onDelete?.(account) },
       ]
     );
-  }, [account, onDelete]);
+  }, [account, onDelete, t]);
 
   // Card Options Menu (ActionSheet)
   const handleOptionsMenu = useCallback(() => {
+    if (onOptionsPress) {
+      onOptionsPress(account);
+      return;
+    }
+
     const title = account.issuer || account.account;
-    const options = ['Huỷ', '✏️ Đổi tên', '📱 Xuất mã QR', '🗑️ Xoá tài khoản'];
+    const options = [
+      t('common.cancel'),
+      t('cards.actions.rename'),
+      t('cards.actions.exportQr'),
+      t('cards.actions.delete'),
+    ];
     const destructiveIndex = 3;
     const cancelIndex = 0;
 
@@ -126,14 +143,14 @@ export const TotpCard: React.FC<TotpCardProps> = ({
         }
       );
     } else {
-      Alert.alert(title, 'Chọn thao tác cho tài khoản này:', [
-        { text: 'Huỷ', style: 'cancel' },
-        { text: '✏️ Đổi tên', onPress: () => onRename?.(account) },
-        { text: '📱 Xuất mã QR', onPress: () => onExportQr?.(account) },
-        { text: '🗑️ Xoá', style: 'destructive', onPress: () => confirmDelete() },
+      Alert.alert(title, `${t('common.edit')}:`, [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('cards.actions.rename'), onPress: () => onRename?.(account) },
+        { text: t('cards.actions.exportQr'), onPress: () => onExportQr?.(account) },
+        { text: t('common.delete'), style: 'destructive', onPress: () => confirmDelete() },
       ]);
     }
-  }, [account, onRename, onExportQr, confirmDelete]);
+  }, [account, onOptionsPress, onRename, onExportQr, confirmDelete, t]);
 
   // Monogram letter and color
   const initialLetter = (account.issuer || account.account || '?')[0].toUpperCase();
@@ -141,7 +158,7 @@ export const TotpCard: React.FC<TotpCardProps> = ({
   const borderCol = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)';
   const textColor = isDark ? '#FFFFFF' : '#111827';
   const subtextColor = isDark ? '#9CA3AF' : '#6B7280';
-  const codeColor = isUrgent ? '#EF4444' : (isDark ? '#F9FAFB' : '#1E293B');
+  const codeColor = isUrgent ? SemanticColors.urgent : (isDark ? '#F9FAFB' : '#1E293B');
 
   return (
     <View
@@ -187,7 +204,7 @@ export const TotpCard: React.FC<TotpCardProps> = ({
             accessibilityRole="button"
             accessibilityLabel="Tuỳ chọn tài khoản"
           >
-            <Text style={[styles.moreText, { color: subtextColor }]}>⋯</Text>
+            <MoreHorizontal size={20} color={subtextColor} strokeWidth={2} />
           </TouchableOpacity>
         </View>
       </View>
@@ -205,9 +222,10 @@ export const TotpCard: React.FC<TotpCardProps> = ({
           <Text style={[styles.codeText, { color: codeColor }]}>
             {formattedCode}
           </Text>
-          {copiedRecently ? (
+          {copiedRecently && showCopiedToast ? (
             <View style={styles.copiedPill}>
-              <Text style={styles.copiedPillText}>Đã chép! ✓</Text>
+              <Check size={12} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 4 }} />
+              <Text style={styles.copiedPillText}>{t('cards.copiedPill')}</Text>
             </View>
           ) : null}
         </View>
@@ -223,7 +241,11 @@ export const TotpCard: React.FC<TotpCardProps> = ({
             strokeWidth={3.5}
           />
           <View style={styles.copyIconWrapper}>
-            <Text style={styles.copyIcon}>📋</Text>
+            {copiedRecently ? (
+              <Check size={18} color={SemanticColors.success} strokeWidth={2.5} />
+            ) : (
+              <Copy size={18} color={subtextColor} strokeWidth={2} />
+            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -266,7 +288,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#3B82F6',
+    backgroundColor: BrandColors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -293,13 +315,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   typeBadge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+    backgroundColor: 'rgba(247, 107, 0, 0.12)',
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
   },
   typeBadgeText: {
-    color: '#3B82F6',
+    color: BrandColors.primary,
     fontSize: 10.5,
     fontWeight: '700',
   },
@@ -341,7 +363,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   copiedPill: {
-    backgroundColor: '#10B981',
+    backgroundColor: SemanticColors.success,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,

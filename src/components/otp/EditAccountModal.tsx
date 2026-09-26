@@ -15,42 +15,42 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
-import { ClipboardPaste, Clock, Hash, ChevronDown, ChevronRight } from 'lucide-react-native';
+import {
+  ClipboardPaste,
+  Clock,
+  Hash,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react-native';
 import { useTheme } from '@/hooks/use-theme';
 import { BrandColors, SemanticColors } from '@/constants/theme';
 import {
   sanitizeManualSecret,
   validateManualSecret,
-  validateManualEntryForm,
-  createOtpAccountFromManual,
-  type ManualEntryFormValues,
 } from '@/services/ingestion/manualInput';
-import { findDuplicateAccount } from '@/services/ingestion/ingestionRouter';
 import type { OtpAccount, OtpType, OtpAlgorithm } from '@/types/otp';
 
-export interface ManualEntryModalProps {
+export interface EditAccountModalProps {
   visible: boolean;
+  account: OtpAccount | null;
   onClose: () => void;
-  onSave: (account: OtpAccount) => void;
-  existingAccounts: OtpAccount[];
-  initialValues?: Partial<ManualEntryFormValues>;
+  onSave: (updatedAccount: OtpAccount) => Promise<void> | void;
   testID?: string;
 }
 
-export function ManualEntryModal({
+export const EditAccountModal: React.FC<EditAccountModalProps> = ({
   visible,
+  account,
   onClose,
   onSave,
-  existingAccounts,
-  initialValues,
-  testID = 'manual-entry-modal',
-}: ManualEntryModalProps) {
+  testID = 'edit-account-modal',
+}) => {
   const { t } = useTranslation();
   const theme = useTheme();
 
-  // Form State
+  // Form states
   const [issuer, setIssuer] = useState('');
-  const [account, setAccount] = useState('');
+  const [accountName, setAccountName] = useState('');
   const [secret, setSecret] = useState('');
   const [type, setType] = useState<OtpType>('totp');
   const [algorithm, setAlgorithm] = useState<OtpAlgorithm>('SHA1');
@@ -59,47 +59,43 @@ export function ManualEntryModal({
   const [counter, setCounter] = useState('0');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Validation feedback state
-  const [secretError, setSecretError] = useState<string | null>(null);
+  // Errors & saving status
   const [accountError, setAccountError] = useState<string | null>(null);
+  const [secretError, setSecretError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Initialize or reset form values
   useEffect(() => {
-    if (visible) {
-      setIssuer(initialValues?.issuer || '');
-      setAccount(initialValues?.account || '');
-      const initialSecret = initialValues?.secret ? sanitizeManualSecret(initialValues.secret) : '';
-      setSecret(initialSecret);
-      setType((initialValues?.type as OtpType) || 'totp');
-      setAlgorithm((initialValues?.algorithm as OtpAlgorithm) || 'SHA1');
-      setDigits((initialValues?.digits as 6 | 8) || 6);
-      setPeriod(String(initialValues?.period || 30));
-      setCounter(String(initialValues?.counter || 0));
-      setSecretError(null);
+    if (visible && account) {
+      setIssuer(account.issuer || '');
+      setAccountName(account.account || '');
+      setSecret(account.secret || '');
+      setType(account.type || 'totp');
+      setAlgorithm(account.algorithm || 'SHA1');
+      setDigits(account.digits || 6);
+      setPeriod(String(account.period || 30));
+      setCounter(String(account.counter || 0));
       setAccountError(null);
+      setSecretError(null);
       setShowAdvanced(false);
+      setIsSaving(false);
     }
-  }, [visible, initialValues]);
+  }, [visible, account]);
 
-  // Real-time secret change handler
   const handleSecretChange = (text: string) => {
-    const cleaned = sanitizeManualSecret(text);
-    setSecret(cleaned);
-
-    if (cleaned.length === 0) {
+    const sanitized = sanitizeManualSecret(text);
+    setSecret(sanitized);
+    if (!sanitized) {
       setSecretError(null);
       return;
     }
-
-    const validation = validateManualSecret(cleaned);
-    if (!validation.isValid) {
-      setSecretError(validation.error || t('manual.errSecretInvalid'));
+    const valResult = validateManualSecret(sanitized);
+    if (!valResult.isValid) {
+      setSecretError(valResult.error || t('editAccount.errInvalidSecret'));
     } else {
       setSecretError(null);
     }
   };
 
-  // 1-Tap Paste from clipboard
   const handlePasteSecret = async () => {
     try {
       const text = await Clipboard.getStringAsync();
@@ -108,58 +104,68 @@ export function ManualEntryModal({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       }
     } catch {
-      // Graceful fallback
+      // Ignore clipboard error
     }
   };
 
-  // Submit Handler with Duplicate Detection
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!account) return;
+
     setAccountError(null);
     setSecretError(null);
 
-    const formValues: ManualEntryFormValues = {
-      account,
+    const trimmedAccount = accountName.trim();
+    if (!trimmedAccount) {
+      setAccountError(t('editAccount.errAccountEmpty'));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      return;
+    }
+
+    const sanitizedSecret = sanitizeManualSecret(secret);
+    if (!sanitizedSecret) {
+      setSecretError(t('editAccount.errInvalidSecret'));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      return;
+    }
+
+    const secretValidation = validateManualSecret(sanitizedSecret);
+    if (!secretValidation.isValid) {
+      setSecretError(secretValidation.error || t('editAccount.errInvalidSecret'));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      return;
+    }
+
+    const parsedPeriod = parseInt(period, 10);
+    const parsedCounter = parseInt(counter, 10);
+
+    const updatedAccount: OtpAccount = {
+      ...account,
       issuer: issuer.trim() || undefined,
-      secret,
+      account: trimmedAccount,
+      secret: sanitizedSecret,
       type,
       algorithm,
       digits,
-      period: type === 'totp' ? parseInt(period, 10) || 30 : 30,
-      counter: type === 'hotp' ? parseInt(counter, 10) || 0 : 0,
+      period: type === 'totp' ? (!isNaN(parsedPeriod) && parsedPeriod > 0 ? parsedPeriod : 30) : 30,
+      counter: type === 'hotp' ? (!isNaN(parsedCounter) && parsedCounter >= 0 ? parsedCounter : 0) : 0,
     };
 
-    const validation = validateManualEntryForm(formValues);
-    if (!validation.isValid) {
-      if (validation.errors.account) setAccountError(validation.errors.account);
-      if (validation.errors.secret) setSecretError(validation.errors.secret);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-      return;
+    setIsSaving(true);
+    try {
+      await onSave(updatedAccount);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      onClose();
+    } catch (err) {
+      console.warn('Failed to update account:', err);
+      Alert.alert(t('common.error'), t('editAccount.errSaveFailed'));
+    } finally {
+      setIsSaving(false);
     }
-
-    // Duplicate Check
-    const duplicate = findDuplicateAccount(
-      { issuer: formValues.issuer, account: formValues.account, secret: formValues.secret },
-      existingAccounts
-    );
-
-    if (duplicate) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-      Alert.alert(
-        t('manual.duplicateTitle'),
-        t('manual.duplicateMsg', {
-          name: duplicate.issuer ? `${duplicate.issuer} (${duplicate.account})` : duplicate.account,
-        }),
-        [{ text: t('manual.understood'), style: 'cancel' }]
-      );
-      return;
-    }
-
-    // Construct Canonical Account Model
-    const newAccount = createOtpAccountFromManual(formValues);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    onSave(newAccount);
-    onClose();
   };
+
+  if (!visible || !account) {
+    return null;
+  }
 
   return (
     <Modal
@@ -168,7 +174,7 @@ export function ManualEntryModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
       testID={testID}
-      accessibilityLabel={t('manual.title')}
+      accessibilityLabel={t('editAccount.title')}
     >
       <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <KeyboardAvoidingView
@@ -177,14 +183,35 @@ export function ManualEntryModal({
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} testID={`${testID}-cancel`}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.headerButton}
+              testID={`${testID}-cancel`}
+              accessibilityRole="button"
+              accessibilityLabel={t('editAccount.cancelBtn')}
+            >
               <Text style={[styles.headerCancelText, { color: theme.textSecondary }]}>
-                {t('manual.cancelBtn')}
+                {t('editAccount.cancelBtn')}
               </Text>
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: theme.text }]}>{t('manual.title')}</Text>
-            <TouchableOpacity onPress={handleSubmit} testID={`${testID}-submit`}>
-              <Text style={styles.headerSaveText}>{t('manual.saveBtn')}</Text>
+
+            <View style={styles.headerTitleCluster}>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>
+                {t('editAccount.title')}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={isSaving}
+              style={styles.headerButton}
+              testID={`${testID}-save`}
+              accessibilityRole="button"
+              accessibilityLabel={t('editAccount.saveBtn')}
+            >
+              <Text style={[styles.headerSaveText, isSaving && { opacity: 0.6 }]}>
+                {t('editAccount.saveBtn')}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -193,29 +220,30 @@ export function ManualEntryModal({
             contentContainerStyle={styles.formContent}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Field: Issuer */}
+            {/* Field: Service / Issuer */}
             <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                {t('manual.issuerLabel')}
+                {t('editAccount.issuerLabel')}
               </Text>
               <TextInput
                 style={[
                   styles.input,
                   { backgroundColor: theme.backgroundElement, color: theme.text },
                 ]}
-                placeholder={t('manual.issuerPlaceholder')}
+                placeholder={t('editAccount.issuerPlaceholder')}
                 placeholderTextColor={theme.textSecondary}
                 value={issuer}
                 onChangeText={setIssuer}
                 testID={`${testID}-input-issuer`}
                 autoCapitalize="words"
+                editable={!isSaving}
               />
             </View>
 
             {/* Field: Account Name */}
             <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                {t('manual.accountLabel')} <Text style={styles.requiredAsterisk}>*</Text>
+                {t('editAccount.accountLabel')} <Text style={styles.requiredAsterisk}>*</Text>
               </Text>
               <TextInput
                 style={[
@@ -223,16 +251,17 @@ export function ManualEntryModal({
                   { backgroundColor: theme.backgroundElement, color: theme.text },
                   accountError ? styles.inputError : null,
                 ]}
-                placeholder={t('manual.accountPlaceholder')}
+                placeholder={t('editAccount.accountPlaceholder')}
                 placeholderTextColor={theme.textSecondary}
-                value={account}
+                value={accountName}
                 onChangeText={(val) => {
-                  setAccount(val);
+                  setAccountName(val);
                   if (accountError) setAccountError(null);
                 }}
                 testID={`${testID}-input-account`}
                 autoCapitalize="none"
                 autoCorrect={false}
+                editable={!isSaving}
               />
               {accountError && (
                 <Text style={styles.errorText} testID={`${testID}-error-account`}>
@@ -241,19 +270,25 @@ export function ManualEntryModal({
               )}
             </View>
 
-            {/* Field: Secret Key (Base32) */}
+            {/* Field: Secret Key */}
             <View style={styles.fieldGroup}>
               <View style={styles.secretHeaderRow}>
                 <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                  {t('manual.secretLabel')} <Text style={styles.requiredAsterisk}>*</Text>
+                  {t('editAccount.secretLabel')} <Text style={styles.requiredAsterisk}>*</Text>
                 </Text>
                 <TouchableOpacity
                   onPress={handlePasteSecret}
                   style={styles.pasteButton}
                   testID={`${testID}-paste-secret`}
+                  disabled={isSaving}
                 >
-                  <ClipboardPaste size={13} color={BrandColors.primary} strokeWidth={2} style={{ marginRight: 4 }} />
-                  <Text style={styles.pasteButtonText}>{t('manual.pasteBtn')}</Text>
+                  <ClipboardPaste
+                    size={13}
+                    color={BrandColors.primary}
+                    strokeWidth={2}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text style={styles.pasteButtonText}>{t('editAccount.pasteSecret')}</Text>
                 </TouchableOpacity>
               </View>
               <TextInput
@@ -263,48 +298,54 @@ export function ManualEntryModal({
                   { backgroundColor: theme.backgroundElement, color: theme.text },
                   secretError ? styles.inputError : null,
                 ]}
-                placeholder={t('manual.secretPlaceholder')}
+                placeholder={t('editAccount.secretPlaceholder')}
                 placeholderTextColor={theme.textSecondary}
                 value={secret}
                 onChangeText={handleSecretChange}
                 testID={`${testID}-input-secret`}
                 autoCapitalize="characters"
                 autoCorrect={false}
+                editable={!isSaving}
               />
-              {secretError ? (
+              {secretError && (
                 <Text style={styles.errorText} testID={`${testID}-error-secret`}>
                   {secretError}
-                </Text>
-              ) : (
-                <Text style={[styles.helperText, { color: theme.textSecondary }]}>
-                  {t('manual.secretHelper')}
                 </Text>
               )}
             </View>
 
-            {/* Field: Type Selection (TOTP vs HOTP) */}
+            {/* Field: Type Selection */}
             <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                {t('manual.typeLabel')}
+                {t('editAccount.typeLabel')}
               </Text>
               <View style={styles.segmentedRow}>
                 <TouchableOpacity
                   style={[
                     styles.segmentOption,
                     type === 'totp' && styles.segmentActive,
-                    { backgroundColor: type === 'totp' ? BrandColors.primary : theme.backgroundElement },
+                    {
+                      backgroundColor:
+                        type === 'totp' ? BrandColors.primary : theme.backgroundElement,
+                    },
                   ]}
                   onPress={() => setType('totp')}
                   testID={`${testID}-type-totp`}
+                  disabled={isSaving}
                 >
-                  <Clock size={15} color={type === 'totp' ? '#FFFFFF' : theme.text} strokeWidth={2} style={{ marginRight: 6 }} />
+                  <Clock
+                    size={15}
+                    color={type === 'totp' ? '#FFFFFF' : theme.text}
+                    strokeWidth={2}
+                    style={{ marginRight: 6 }}
+                  />
                   <Text
                     style={[
                       styles.segmentText,
                       { color: type === 'totp' ? '#FFFFFF' : theme.text },
                     ]}
                   >
-                    {t('manual.typeTotp')}
+                    TOTP
                   </Text>
                 </TouchableOpacity>
 
@@ -312,19 +353,28 @@ export function ManualEntryModal({
                   style={[
                     styles.segmentOption,
                     type === 'hotp' && styles.segmentActive,
-                    { backgroundColor: type === 'hotp' ? BrandColors.primary : theme.backgroundElement },
+                    {
+                      backgroundColor:
+                        type === 'hotp' ? BrandColors.primary : theme.backgroundElement,
+                    },
                   ]}
                   onPress={() => setType('hotp')}
                   testID={`${testID}-type-hotp`}
+                  disabled={isSaving}
                 >
-                  <Hash size={15} color={type === 'hotp' ? '#FFFFFF' : theme.text} strokeWidth={2} style={{ marginRight: 6 }} />
+                  <Hash
+                    size={15}
+                    color={type === 'hotp' ? '#FFFFFF' : theme.text}
+                    strokeWidth={2}
+                    style={{ marginRight: 6 }}
+                  />
                   <Text
                     style={[
                       styles.segmentText,
                       { color: type === 'hotp' ? '#FFFFFF' : theme.text },
                     ]}
                   >
-                    {t('manual.typeHotp')}
+                    HOTP
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -337,13 +387,21 @@ export function ManualEntryModal({
               testID={`${testID}-toggle-advanced`}
             >
               {showAdvanced ? (
-                <ChevronDown size={16} color={BrandColors.primary} strokeWidth={2} style={{ marginRight: 6 }} />
+                <ChevronDown
+                  size={16}
+                  color={BrandColors.primary}
+                  strokeWidth={2}
+                  style={{ marginRight: 6 }}
+                />
               ) : (
-                <ChevronRight size={16} color={BrandColors.primary} strokeWidth={2} style={{ marginRight: 6 }} />
+                <ChevronRight
+                  size={16}
+                  color={BrandColors.primary}
+                  strokeWidth={2}
+                  style={{ marginRight: 6 }}
+                />
               )}
-              <Text style={styles.advancedToggleText}>
-                {showAdvanced ? t('manual.hideAdvanced') : t('manual.showAdvanced')}
-              </Text>
+              <Text style={styles.advancedToggleText}>{t('editAccount.advancedSettings')}</Text>
             </TouchableOpacity>
 
             {/* Advanced Settings Section */}
@@ -352,7 +410,7 @@ export function ManualEntryModal({
                 {/* Algorithm Selector */}
                 <View style={styles.fieldGroup}>
                   <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                    {t('manual.algoLabel')}
+                    {t('editAccount.algorithmLabel')}
                   </Text>
                   <View style={styles.segmentedRow}>
                     {(['SHA1', 'SHA256', 'SHA512'] as OtpAlgorithm[]).map((algo) => (
@@ -368,6 +426,7 @@ export function ManualEntryModal({
                         ]}
                         onPress={() => setAlgorithm(algo)}
                         testID={`${testID}-algo-${algo.toLowerCase()}`}
+                        disabled={isSaving}
                       >
                         <Text
                           style={[
@@ -385,7 +444,7 @@ export function ManualEntryModal({
                 {/* Digits Selector */}
                 <View style={styles.fieldGroup}>
                   <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                    {t('manual.digitsLabel')}
+                    {t('editAccount.digitsLabel')}
                   </Text>
                   <View style={styles.segmentedRow}>
                     {([6, 8] as const).map((d) => (
@@ -401,6 +460,7 @@ export function ManualEntryModal({
                         ]}
                         onPress={() => setDigits(d)}
                         testID={`${testID}-digits-${d}`}
+                        disabled={isSaving}
                       >
                         <Text
                           style={[
@@ -408,7 +468,7 @@ export function ManualEntryModal({
                             { color: digits === d ? '#FFFFFF' : theme.text },
                           ]}
                         >
-                          {t('manual.digitsCount', { count: d })}
+                          {t('editAccount.digitsOption', { count: d })}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -419,7 +479,7 @@ export function ManualEntryModal({
                 {type === 'totp' && (
                   <View style={styles.fieldGroup}>
                     <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                      {t('manual.periodLabel')}
+                      {t('editAccount.periodLabel')}
                     </Text>
                     <TextInput
                       style={[
@@ -430,6 +490,7 @@ export function ManualEntryModal({
                       value={period}
                       onChangeText={setPeriod}
                       testID={`${testID}-input-period`}
+                      editable={!isSaving}
                     />
                   </View>
                 )}
@@ -438,7 +499,7 @@ export function ManualEntryModal({
                 {type === 'hotp' && (
                   <View style={styles.fieldGroup}>
                     <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>
-                      {t('manual.counterLabel')}
+                      {t('editAccount.counterLabel')}
                     </Text>
                     <TextInput
                       style={[
@@ -449,26 +510,18 @@ export function ManualEntryModal({
                       value={counter}
                       onChangeText={setCounter}
                       testID={`${testID}-input-counter`}
+                      editable={!isSaving}
                     />
                   </View>
                 )}
               </View>
             )}
-
-            {/* Bottom Primary Save Button */}
-            <TouchableOpacity
-              style={styles.submitButton}
-              onPress={handleSubmit}
-              testID={`${testID}-bottom-save`}
-            >
-              <Text style={styles.submitButtonText}>{t('manual.submitBtn')}</Text>
-            </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -479,12 +532,18 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#8E8E93',
+    borderBottomColor: 'rgba(128, 128, 128, 0.2)',
+  },
+  headerButton: {
+    minWidth: 60,
+  },
+  headerTitleCluster: {
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 17,
@@ -497,20 +556,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: BrandColors.primary,
+    textAlign: 'right',
   },
   formScroll: {
     flex: 1,
   },
   formContent: {
     padding: 20,
-    gap: 18,
+    paddingBottom: 40,
   },
   fieldGroup: {
-    gap: 6,
+    marginBottom: 18,
   },
   fieldLabel: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '600',
+    marginBottom: 8,
   },
   requiredAsterisk: {
     color: SemanticColors.urgent,
@@ -519,87 +580,80 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 15,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   monoInput: {
-    fontFamily: Platform.select({ ios: 'Courier', android: 'monospace', default: 'monospace' }),
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     letterSpacing: 1,
   },
   inputError: {
-    borderWidth: 1.5,
     borderColor: SemanticColors.urgent,
   },
   errorText: {
     color: SemanticColors.urgent,
     fontSize: 12,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  helperText: {
-    fontSize: 12,
-    marginTop: 2,
+    marginTop: 6,
+    marginLeft: 2,
   },
   secretHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 8,
   },
   pasteButton: {
-    backgroundColor: 'rgba(247, 107, 0, 0.1)',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 6,
+    backgroundColor: 'rgba(247, 107, 0, 0.1)',
   },
   pasteButtonText: {
-    fontSize: 12,
     color: BrandColors.primary,
+    fontSize: 12,
     fontWeight: '600',
   },
   segmentedRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   segmentOption: {
     flex: 1,
     flexDirection: 'row',
-    paddingVertical: 10,
-    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
   },
   segmentActive: {
-    backgroundColor: BrandColors.primary,
+    shadowColor: BrandColors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
   segmentText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   advancedToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
+    marginBottom: 10,
   },
   advancedToggleText: {
-    color: BrandColors.primary,
-    fontSize: 13,
+    fontSize: 14.5,
     fontWeight: '600',
+    color: BrandColors.primary,
   },
   advancedSection: {
-    gap: 16,
-    paddingTop: 8,
-  },
-  submitButton: {
-    backgroundColor: BrandColors.primary,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  submitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    paddingTop: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(128, 128, 128, 0.15)',
+    marginBottom: 12,
   },
 });

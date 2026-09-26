@@ -10,10 +10,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import * as Haptics from 'expo-haptics';
+import { QrCode, X, AlertTriangle, Check, Copy } from 'lucide-react-native';
 import { copyWithAutoClear } from '@/services/security/clipboardClear';
 
 import { useTheme } from '@/hooks/use-theme';
-import { Spacing } from '@/constants/theme';
+import { Spacing, BrandColors, SemanticColors } from '@/constants/theme';
+import { useTranslation } from 'react-i18next';
 import { generateOtpAuthUri } from '@/services/otp/uriParser';
 import type { OtpAccount } from '@/types/otp';
 
@@ -24,6 +26,7 @@ export interface AccountQrModalProps {
 }
 
 export function AccountQrModal({ visible, account, onClose }: AccountQrModalProps) {
+  const { t } = useTranslation();
   const theme = useTheme();
   const [copiedKey, setCopiedKey] = useState(false);
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -81,11 +84,14 @@ export function AccountQrModal({ visible, account, onClose }: AccountQrModalProp
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>
-                📲 Chuyển tài khoản (QR)
-              </Text>
+              <View style={styles.headerTitleRow}>
+                <QrCode size={20} color={theme.text} strokeWidth={2} style={{ marginRight: 8 }} />
+                <Text style={[styles.headerTitle, { color: theme.text }]}>
+                  {t('qrModal.title')}
+                </Text>
+              </View>
               <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
-                Quét mã này từ thiết bị khác để chuyển mã 2FA
+                {t('qrModal.subtitle')}
               </Text>
             </View>
 
@@ -94,9 +100,9 @@ export function AccountQrModal({ visible, account, onClose }: AccountQrModalProp
               onPress={onClose}
               style={[styles.closeBtn, { backgroundColor: theme.backgroundElement }]}
               accessibilityRole="button"
-              accessibilityLabel="Đóng mã QR"
+              accessibilityLabel={t('qrModal.closeBtn')}
             >
-              <Text style={[styles.closeBtnText, { color: theme.text }]}>✕</Text>
+              <X size={20} color={theme.text} strokeWidth={2} />
             </TouchableOpacity>
           </View>
 
@@ -113,7 +119,7 @@ export function AccountQrModal({ visible, account, onClose }: AccountQrModalProp
                   quietZone={10}
                 />
               ) : (
-                <Text style={styles.errorText}>Không thể tạo mã QR cho tài khoản này.</Text>
+                <Text style={styles.errorText}>{t('qrModal.cannotGenerate')}</Text>
               )}
             </View>
 
@@ -121,7 +127,7 @@ export function AccountQrModal({ visible, account, onClose }: AccountQrModalProp
             <View style={[styles.infoCard, { backgroundColor: theme.backgroundElement }]}>
               <View style={styles.accountRow}>
                 <Text style={[styles.issuerName, { color: theme.text }]}>
-                  {account.issuer ? `${account.issuer}` : 'Tài khoản'}
+                  {account.issuer ? `${account.issuer}` : t('qrModal.defaultAccountName')}
                 </Text>
                 <View style={styles.typeBadge}>
                   <Text style={styles.typeBadgeText}>
@@ -137,14 +143,14 @@ export function AccountQrModal({ visible, account, onClose }: AccountQrModalProp
 
               <View style={styles.algoRow}>
                 <Text style={[styles.algoText, { color: theme.textSecondary }]}>
-                  Thuật toán: {account.algorithm} • {account.digits} chữ số
+                  {t('qrModal.algoDetails', { algo: account.algorithm, digits: account.digits })}
                 </Text>
               </View>
 
               {/* Secret display with copy */}
               <View style={styles.secretContainer}>
                 <Text style={[styles.secretLabel, { color: theme.textSecondary }]}>
-                  Khoá bí mật (Base32):
+                  {t('qrModal.secretLabel')}
                 </Text>
                 <View style={styles.secretBox}>
                   <Text
@@ -160,11 +166,16 @@ export function AccountQrModal({ visible, account, onClose }: AccountQrModalProp
                     onPress={handleCopySecret}
                     style={[
                       styles.copyBtn,
-                      { backgroundColor: copiedKey ? '#10B981' : '#3B82F6' },
+                      { backgroundColor: copiedKey ? SemanticColors.success : BrandColors.primary },
                     ]}
                   >
+                    {copiedKey ? (
+                      <Check size={14} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 4 }} />
+                    ) : (
+                      <Copy size={14} color="#FFFFFF" strokeWidth={2} style={{ marginRight: 4 }} />
+                    )}
                     <Text style={styles.copyBtnText}>
-                      {copiedKey ? '✓ Đã chép' : 'Sao chép'}
+                      {copiedKey ? t('common.copied') : t('common.copy')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -173,9 +184,12 @@ export function AccountQrModal({ visible, account, onClose }: AccountQrModalProp
 
             {/* Security Warning Notice */}
             <View style={styles.warningCard}>
-              <Text style={styles.warningTitle}>⚠️ Cảnh báo bảo mật</Text>
+              <View style={styles.warningHeaderRow}>
+                <AlertTriangle size={16} color="#B45309" strokeWidth={2} style={{ marginRight: 6 }} />
+                <Text style={styles.warningTitle}>{t('qrModal.warningTitle')}</Text>
+              </View>
               <Text style={styles.warningText}>
-                Mã QR này chứa toàn bộ quyền sinh mã xác thực 2FA. Tuyệt đối không chụp màn hình gửi lên mạng hoặc để người lạ quét mã.
+                {t('qrModal.warningDesc')}
               </Text>
             </View>
           </View>
@@ -204,6 +218,10 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(150,150,150,0.2)',
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 18,
@@ -256,7 +274,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   typeBadge: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: BrandColors.primary,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
@@ -300,6 +318,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   copyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -318,6 +338,10 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: 4,
   },
+  warningHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   warningTitle: {
     color: '#B45309',
     fontSize: 13,
@@ -329,7 +353,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   errorText: {
-    color: '#EF4444',
+    color: SemanticColors.urgent,
     fontSize: 14,
     padding: Spacing.three,
   },

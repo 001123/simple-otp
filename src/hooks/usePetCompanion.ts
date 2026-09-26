@@ -13,6 +13,7 @@ import {
   SPEECH_AUTO_DISMISS_MS,
 } from '@/services/pet/mascotState';
 import { getDialogueItem } from '@/services/pet/petDialogues';
+import i18n from '@/services/i18n';
 
 export function usePetCompanion(options?: UsePetCompanionOptions): UsePetCompanionResult {
   const { accountCount = 0, hasUrgentTimer = false } = options ?? {};
@@ -90,7 +91,10 @@ export function usePetCompanion(options?: UsePetCompanionOptions): UsePetCompani
         clearTimeout(speechTimerRef.current);
       }
 
-      const messageToDisplay = customMessage ?? 'Chào bạn! Tớ đang canh gác kho mã an toàn.';
+      const defaultMsg = i18n.language?.startsWith('en')
+        ? 'Hello! I am guarding your vault.'
+        : 'Chào bạn! Tớ đang canh gác kho mã an toàn.';
+      const messageToDisplay = customMessage ?? defaultMsg;
       setSpeechMessage(messageToDisplay);
       setSpeechActionText(actionText ?? null);
       setIsSpeechVisible(true);
@@ -113,7 +117,8 @@ export function usePetCompanion(options?: UsePetCompanionOptions): UsePetCompani
       previousId: lastDialogueIdRef.current,
     });
     lastDialogueIdRef.current = item.id;
-    triggerSpeech(item.text, SPEECH_AUTO_DISMISS_MS, item.actionText || 'Mở Pet Academy');
+    const defaultAction = i18n.language?.startsWith('en') ? 'Open Pet Academy' : 'Mở Pet Academy';
+    triggerSpeech(item.text, SPEECH_AUTO_DISMISS_MS, item.actionText || defaultAction);
   }, [petId, petState, triggerSpeech]);
 
   // 1-Tap Copy transient celebration
@@ -127,7 +132,10 @@ export function usePetCompanion(options?: UsePetCompanionOptions): UsePetCompani
       previousId: lastDialogueIdRef.current,
     });
     lastDialogueIdRef.current = copyItem.id;
-    triggerSpeech(copyItem.text || 'Đã sao chép! An toàn tuyệt đối! 🎉', COPIED_DURATION_MS);
+    const defaultCopy = i18n.language?.startsWith('en')
+      ? 'Copied! Perfectly secure!'
+      : 'Đã sao chép! An toàn tuyệt đối!';
+    triggerSpeech(copyItem.text || defaultCopy, COPIED_DURATION_MS);
 
     copiedTimerRef.current = setTimeout(() => {
       setIsCopiedActive(false);

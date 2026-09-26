@@ -1,6 +1,9 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { Search, ShieldCheck, Plus } from 'lucide-react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { BrandColors } from '@/constants/theme';
 
 export interface EmptyVaultViewProps {
   isSearchEmpty?: boolean;
@@ -15,6 +18,7 @@ export const EmptyVaultView: React.FC<EmptyVaultViewProps> = ({
   onAddAccount,
   onClearSearch,
 }) => {
+  const { t } = useTranslation();
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
 
@@ -24,12 +28,14 @@ export const EmptyVaultView: React.FC<EmptyVaultViewProps> = ({
   if (isSearchEmpty) {
     return (
       <View testID="empty-search-view" style={styles.container}>
-        <Text style={styles.iconGraphic}>🔍</Text>
+        <View style={styles.iconGraphicContainer}>
+          <Search size={48} color={subtextColor} strokeWidth={1.75} />
+        </View>
         <Text style={[styles.title, { color: textColor }]}>
-          Không tìm thấy tài khoản
+          {t('empty.searchTitle')}
         </Text>
         <Text style={[styles.subtitle, { color: subtextColor }]}>
-          Không có tài khoản nào khớp với từ khoá &quot;{searchQuery}&quot;.
+          {t('empty.searchSubtitle', { query: searchQuery })}
         </Text>
         {Boolean(onClearSearch) && (
           <TouchableOpacity
@@ -37,9 +43,9 @@ export const EmptyVaultView: React.FC<EmptyVaultViewProps> = ({
             onPress={onClearSearch}
             style={styles.clearSearchBtn}
             accessibilityRole="button"
-            accessibilityLabel="Xoá bộ lọc tìm kiếm"
+            accessibilityLabel={t('empty.clearFilter')}
           >
-            <Text style={styles.clearSearchText}>Xoá bộ lọc</Text>
+            <Text style={styles.clearSearchText}>{t('empty.clearFilter')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -48,12 +54,14 @@ export const EmptyVaultView: React.FC<EmptyVaultViewProps> = ({
 
   return (
     <View testID="empty-vault-view" style={styles.container}>
-      <Text style={styles.iconGraphic}>🛡️</Text>
+      <View style={styles.iconGraphicContainer}>
+        <ShieldCheck size={56} color={BrandColors.primary} strokeWidth={1.75} />
+      </View>
       <Text style={[styles.title, { color: textColor }]}>
-        Chưa có tài khoản 2FA nào
+        {t('empty.vaultTitle')}
       </Text>
       <Text style={[styles.subtitle, { color: subtextColor }]}>
-        Thêm tài khoản 2FA đầu tiên bằng cách quét mã QR hoặc nhập khoá bí mật để bé thú cưng bắt đầu canh giữ.
+        {t('empty.vaultSubtitle')}
       </Text>
       {Boolean(onAddAccount) && (
         <TouchableOpacity
@@ -61,9 +69,10 @@ export const EmptyVaultView: React.FC<EmptyVaultViewProps> = ({
           onPress={onAddAccount}
           style={styles.addButton}
           accessibilityRole="button"
-          accessibilityLabel="Thêm tài khoản ngay"
+          accessibilityLabel={t('empty.addAccountNow')}
         >
-          <Text style={styles.addBtnText}>➕ Thêm tài khoản ngay</Text>
+          <Plus size={18} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 6 }} />
+          <Text style={styles.addBtnText}>{t('empty.addAccountNow')}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -77,9 +86,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconGraphic: {
-    fontSize: 54,
+  iconGraphicContainer: {
     marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 19,
@@ -95,11 +105,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   addButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: BrandColors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 22,
     paddingVertical: 12,
     borderRadius: 14,
-    shadowColor: '#2563EB',
+    shadowColor: BrandColors.primaryDark,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { SemanticColors } from '@/constants/theme';
 
 export interface CountdownRingProps {
   remainingSeconds: number;
@@ -24,8 +25,8 @@ export const CountdownRing: React.FC<CountdownRingProps> = ({
   isUrgent = false,
   size = 44,
   strokeWidth = 3.5,
-  urgentColor = '#EF4444',
-  normalColor = '#2563EB',
+  urgentColor = SemanticColors.urgent,
+  normalColor = SemanticColors.countdownNormal,
   trackColor,
   showText = true,
   testID = 'countdown-ring',

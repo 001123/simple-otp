@@ -1,4 +1,6 @@
 import type { AcademyLesson, LessonId } from '@/types/pet';
+import i18n from '@/services/i18n';
+import { ACADEMY_LESSONS_EN } from './petAcademyDataEn';
 
 export const ACADEMY_LESSONS: AcademyLesson[] = [
   {
@@ -24,7 +26,7 @@ export const ACADEMY_LESSONS: AcademyLesson[] = [
           type: 'warning',
           title: 'Con số giật mình',
           text: 'Hơn 15 tỷ thông tin đăng nhập đã bị rò rỉ trên Internet từ các vụ tấn công cơ sở dữ liệu lớn!',
-          icon: '⚠️',
+          icon: 'warning',
         },
       },
       {
@@ -50,7 +52,7 @@ export const ACADEMY_LESSONS: AcademyLesson[] = [
           type: 'tip',
           title: 'Lá chắn 2FA',
           text: 'Bật 2FA giúp ngăn chặn hơn 99% các vụ tấn công đánh cắp tài khoản tự động.',
-          icon: '💡',
+          icon: 'tip',
         },
       },
     ],
@@ -111,7 +113,7 @@ export const ACADEMY_LESSONS: AcademyLesson[] = [
           type: 'info',
           title: '100% Không Cần Mạng',
           text: 'Ứng dụng không cần gửi bất kỳ dữ liệu nào qua mạng vì cả máy chủ và điện thoại đều tự tính toán độc lập dựa trên cùng một công thức toán học!',
-          icon: 'ℹ️',
+          icon: 'info',
         },
       },
     ],
@@ -176,7 +178,7 @@ export const ACADEMY_LESSONS: AcademyLesson[] = [
           type: 'info',
           title: 'Cửa sổ nhìn trước',
           text: 'Máy chủ chấp nhận một dải bộ đếm kế tiếp để chống lệch số lần bấm nút.',
-          icon: 'ℹ️',
+          icon: 'info',
         },
       },
     ],
@@ -223,7 +225,7 @@ export const ACADEMY_LESSONS: AcademyLesson[] = [
           type: 'warning',
           title: 'Cực kỳ nguy hiểm',
           text: 'Chụp màn hình mã QR biến bảo mật 2 lớp trở về lại thành 1 lớp duy nhất!',
-          icon: '⚠️',
+          icon: 'warning',
         },
       },
       {
@@ -249,7 +251,7 @@ export const ACADEMY_LESSONS: AcademyLesson[] = [
       {
         title: '4. Quy tắc vàng khi bảo vệ mã xác thực',
         content:
-          '✅ NÊN: Xuất file sao lưu .simpleotp với mật khẩu dài, lưu trên USB cá nhân hoặc ổ cứng rời.\n✅ NÊN: Chuyển tài khoản sang điện thoại mới bằng tính năng "Xuất mã QR riêng lẻ" trực tiếp giữa 2 máy.\n❌ KHÔNG: Gửi Secret Base32 qua Zalo, Messenger, Telegram hay Email chưa mã hoá.\n❌ KHÔNG: Đặt mật khẩu sao lưu trùng với ngày sinh hoặc mật khẩu quá ngắn.',
+          'NÊN: Xuất file sao lưu .simpleotp với mật khẩu dài, lưu trên USB cá nhân hoặc ổ cứng rời.\nNÊN: Chuyển tài khoản sang điện thoại mới bằng tính năng "Xuất mã QR riêng lẻ" trực tiếp giữa 2 máy.\nKHÔNG: Gửi Secret Base32 qua Zalo, Messenger, Telegram hay Email chưa mã hoá.\nKHÔNG: Đặt mật khẩu sao lưu trùng với ngày sinh hoặc mật khẩu quá ngắn.',
       },
     ],
     proTip:
@@ -273,10 +275,18 @@ export const ACADEMY_LESSONS: AcademyLesson[] = [
   },
 ];
 
-export function getLessonById(id: LessonId): AcademyLesson | undefined {
-  return ACADEMY_LESSONS.find((lesson) => lesson.id === id);
+export function getAcademyLessons(lang?: string): AcademyLesson[] {
+  const currentLang = lang || i18n.language || 'vi';
+  if (currentLang.startsWith('en')) {
+    return ACADEMY_LESSONS_EN;
+  }
+  return ACADEMY_LESSONS;
 }
 
-export function getLessonByIndex(index: number): AcademyLesson | undefined {
-  return ACADEMY_LESSONS.find((lesson) => lesson.index === index);
+export function getLessonById(id: LessonId, lang?: string): AcademyLesson | undefined {
+  return getAcademyLessons(lang).find((lesson) => lesson.id === id);
+}
+
+export function getLessonByIndex(index: number, lang?: string): AcademyLesson | undefined {
+  return getAcademyLessons(lang).find((lesson) => lesson.index === index);
 }

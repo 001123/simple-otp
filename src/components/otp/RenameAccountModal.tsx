@@ -10,8 +10,11 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { Pencil } from 'lucide-react-native';
 import type { OtpAccount } from '@/types/otp';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { BrandColors } from '@/constants/theme';
 
 export interface RenameAccountModalProps {
   visible: boolean;
@@ -26,6 +29,7 @@ export const RenameAccountModal: React.FC<RenameAccountModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const { t } = useTranslation();
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
 
@@ -52,7 +56,7 @@ export const RenameAccountModal: React.FC<RenameAccountModalProps> = ({
       onClose();
     } catch (error) {
       console.warn('Failed to rename account:', error);
-      Alert.alert('Lỗi', 'Không thể đổi tên tài khoản. Vui lòng thử lại.');
+      Alert.alert(t('common.error'), t('rename.errSaveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -79,25 +83,28 @@ export const RenameAccountModal: React.FC<RenameAccountModalProps> = ({
         style={styles.backdrop}
       >
         <View style={[styles.dialog, { backgroundColor: bg, borderColor: borderCol }]}>
-          <Text style={[styles.title, { color: textCol }]}>✏️ Đổi tên tài khoản</Text>
+          <View style={styles.titleRow}>
+            <Pencil size={20} color={textCol} strokeWidth={2} style={{ marginRight: 8 }} />
+            <Text style={[styles.title, { color: textCol }]}>{t('rename.title')}</Text>
+          </View>
 
-          <Text style={[styles.label, { color: subCol }]}>Tên tổ chức / Dịch vụ (Issuer)</Text>
+          <Text style={[styles.label, { color: subCol }]}>{t('rename.issuerLabel')}</Text>
           <TextInput
             testID="rename-issuer-input"
             value={issuer}
             onChangeText={setIssuer}
-            placeholder="VD: Google, GitHub"
+            placeholder={t('rename.issuerPlaceholder')}
             placeholderTextColor={subCol}
             style={[styles.input, { backgroundColor: inputBg, color: textCol }]}
             editable={!isSaving}
           />
 
-          <Text style={[styles.label, { color: subCol }]}>Tên tài khoản / Email *</Text>
+          <Text style={[styles.label, { color: subCol }]}>{t('rename.accountLabel')}</Text>
           <TextInput
             testID="rename-account-input"
             value={accountName}
             onChangeText={setAccountName}
-            placeholder="VD: user@gmail.com"
+            placeholder={t('rename.accountPlaceholder')}
             placeholderTextColor={subCol}
             style={[styles.input, { backgroundColor: inputBg, color: textCol }]}
             editable={!isSaving}
@@ -110,7 +117,7 @@ export const RenameAccountModal: React.FC<RenameAccountModalProps> = ({
               disabled={isSaving}
               style={styles.cancelBtn}
             >
-              <Text style={[styles.cancelBtnText, { color: subCol }]}>Huỷ</Text>
+              <Text style={[styles.cancelBtnText, { color: subCol }]}>{t('rename.cancelBtn')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -122,7 +129,7 @@ export const RenameAccountModal: React.FC<RenameAccountModalProps> = ({
                 (!accountName.trim() || isSaving) && styles.saveBtnDisabled,
               ]}
             >
-              <Text style={styles.saveBtnText}>Lưu thay đổi</Text>
+              <Text style={styles.saveBtnText}>{t('rename.saveBtn')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -146,10 +153,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 20,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   title: {
     fontSize: 18,
     fontWeight: '700',
-    marginBottom: 16,
   },
   label: {
     fontSize: 12.5,
@@ -179,7 +190,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   saveBtn: {
-    backgroundColor: '#2563EB',
+    backgroundColor: BrandColors.primary,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 10,

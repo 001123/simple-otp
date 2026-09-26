@@ -12,13 +12,31 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
+import {
+  X,
+  Globe,
+  PawPrint,
+  Cat,
+  Dog,
+  Rabbit,
+  GraduationCap,
+  Fingerprint,
+  Database,
+  Upload,
+  Download,
+  ShieldCheck,
+  Plus,
+  AlertTriangle,
+  Check,
+} from 'lucide-react-native';
 
 import { useTheme } from '@/hooks/use-theme';
-import { Spacing } from '@/constants/theme';
+import { Spacing, BrandColors, SemanticColors } from '@/constants/theme';
 import { petStorage } from '@/services/pet/petStorage';
 import {
   checkBiometricAvailability,
@@ -31,6 +49,11 @@ import {
   restoreEncryptedBackup,
 } from '@/services/backup/backupCipher';
 import { vaultStorage } from '@/services/storage/vaultStorage';
+import {
+  SUPPORTED_LANGUAGES,
+  getSavedLanguagePreference,
+  setAppLanguage,
+} from '@/services/i18n';
 import type { PetId } from '@/types/pet';
 import type { OtpAccount } from '@/types/otp';
 
@@ -45,30 +68,32 @@ interface PetOption {
   id: PetId;
   name: string;
   vietnameseName: string;
-  emoji: string;
   desc: string;
 }
+
+const PET_ICONS: Record<PetId, React.ComponentType<any>> = {
+  'cipher-cat': Cat,
+  'byte-dog': Dog,
+  'shield-bunny': Rabbit,
+};
 
 const PET_OPTIONS: PetOption[] = [
   {
     id: 'cipher-cat',
     name: 'Cipher Cat',
     vietnameseName: 'Mèo Cipher',
-    emoji: '🐱',
     desc: 'Tinh nghịch, nhanh nhẹn, luôn cảnh giác bảo vệ khoá bảo mật.',
   },
   {
     id: 'byte-dog',
     name: 'Byte Dog',
     vietnameseName: 'Chó Byte',
-    emoji: '🐶',
     desc: 'Trung thành, đáng tin cậy, chuyên gia canh gác cổng 2FA.',
   },
   {
     id: 'shield-bunny',
     name: 'Shield Bunny',
     vietnameseName: 'Thỏ Shield',
-    emoji: '🐰',
     desc: 'Thông minh, cẩn thận, chuyên gia về mã hoá và sao lưu.',
   },
 ];
@@ -79,7 +104,11 @@ export function SettingsModal({
   onAccountsRestored,
   onOpenAcademy,
 }: SettingsModalProps) {
+  const { t } = useTranslation();
   const theme = useTheme();
+
+  // Language selection preference ('system' | 'vi' | 'en')
+  const [activeLangPref, setActiveLangPref] = useState<'system' | 'vi' | 'en'>('system');
 
   // Mascot selection
   const [selectedPet, setSelectedPet] = useState<PetId>('cipher-cat');
@@ -111,6 +140,11 @@ export function SettingsModal({
   useEffect(() => {
     if (!visible) return;
 
+    // Load saved language preference
+    getSavedLanguagePreference().then((saved) => {
+      setActiveLangPref(saved || 'system');
+    });
+
     // Load active pet
     petStorage.getSelectedPet().then(setSelectedPet);
     const unsubPet = petStorage.subscribe(setSelectedPet);
@@ -127,6 +161,13 @@ export function SettingsModal({
     };
   }, [visible]);
 
+  // Handle language selection
+  const handleSelectLanguage = async (code: 'system' | 'vi' | 'en') => {
+    setActiveLangPref(code);
+    await setAppLanguage(code);
+    Haptics.selectionAsync().catch(() => {});
+  };
+
   // Handle pet selection
   const handleSelectPet = async (petId: PetId) => {
     try {
@@ -142,8 +183,8 @@ export function SettingsModal({
   const handleToggleBiometrics = async (newVal: boolean) => {
     if (!hasBiometrics && newVal) {
       Alert.alert(
-        'Sinh trắc học không khả dụng',
-        'Thiết bị chưa cài đặt hoặc không hỗ trợ Face ID / Vân tay / PIN.'
+        t('settings.biometricUnavailableTitle'),
+        t('settings.biometricUnavailableDesc')
       );
       return;
     }
@@ -157,7 +198,7 @@ export function SettingsModal({
         const current = await isBiometricLockEnabled();
         setIsBioEnabled(current);
         if (res.error && res.error !== 'user_cancel') {
-          Alert.alert('Lỗi xác thực', 'Không thể thay đổi trạng thái khoá sinh trắc học.');
+          Alert.alert(t('common.error'), t('settings.biometricFailedTitle'));
         }
       }
     } catch {
@@ -178,11 +219,11 @@ export function SettingsModal({
 
   const handleConfirmExport = async () => {
     if (!exportPassphrase || exportPassphrase.length < 6) {
-      setExportError('Mật khẩu phải có ít nhất 6 ký tự.');
+      setExportError(t('backup.errPassLength'));
       return;
     }
     if (exportPassphrase !== exportConfirmPass) {
-      setExportError('Mật khẩu xác nhận không khớp.');
+      setExportError(t('backup.errPassMismatch'));
       return;
     }
 
@@ -205,23 +246,23 @@ export function SettingsModal({
 
       const canShare = await Sharing.isAvailableAsync();
       if (!canShare) {
-        Alert.alert('Không hỗ trợ chia sẻ', 'Thiết bị không hỗ trợ tính năng chia sẻ tệp.');
+        Alert.alert(t('backup.shareUnavailableTitle'), t('backup.shareUnavailableMsg'));
         setShowExportModal(false);
         return;
       }
 
       await Sharing.shareAsync(backupFile.uri, {
         mimeType: 'application/octet-stream',
-        dialogTitle: 'Lưu tệp sao lưu Simple OTP',
+        dialogTitle: t('backup.exportShareDialogTitle'),
         UTI: 'public.data',
       });
 
       setShowExportModal(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      Alert.alert('Thành công', 'Đã xuất tệp sao lưu mã hoá an toàn.');
+      Alert.alert(t('backup.exportSuccessTitle'), t('backup.exportSuccessMsg'));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      setExportError(`Lỗi sao lưu: ${msg || 'Không xác định'}`);
+      setExportError(`${t('common.error')}: ${msg || 'Unknown'}`);
     } finally {
       setIsExporting(false);
     }
@@ -250,17 +291,17 @@ export function SettingsModal({
       setShowRestoreModal(true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert('Lỗi chọn tệp', msg || 'Không thể đọc tệp đã chọn.');
+      Alert.alert(t('ingestion.galleryPickErrorTitle'), msg || 'Cannot read file.');
     }
   };
 
   const handleConfirmDecrypt = async () => {
     if (!restorePassphrase) {
-      setRestoreError('Vui lòng nhập mật khẩu giải mã.');
+      setRestoreError(t('backup.restoreErrEmpty'));
       return;
     }
     if (!restoreFileContent) {
-      setRestoreError('Không tìm thấy nội dung tệp sao lưu.');
+      setRestoreError(t('backup.restoreErrContent'));
       return;
     }
 
@@ -275,9 +316,9 @@ export function SettingsModal({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('AUTH_FAILED') || msg.includes('Decryption failed')) {
-        setRestoreError('Mật khẩu không chính xác hoặc dữ liệu sao lưu bị hỏng.');
+        setRestoreError(t('backup.restoreErrWrongPass'));
       } else {
-        setRestoreError(`Giải mã thất bại: ${msg}`);
+        setRestoreError(`${t('backup.restoreErrPrefix')}${msg}`);
       }
     } finally {
       setIsRestoring(false);
@@ -313,15 +354,27 @@ export function SettingsModal({
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       Alert.alert(
-        'Khôi phục thành công',
-        `Đã nạp ${pendingAccounts.length} tài khoản vào kho bảo mật.`
+        t('backup.restoreSuccessTitle'),
+        t('backup.restoreSuccessMsg', { count: pendingAccounts.length })
       );
       onAccountsRestored?.();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert('Lỗi lưu trữ', `Không thể ghi tài khoản: ${msg}`);
+      Alert.alert(t('backup.storageErrorTitle'), t('backup.storageErrorMsg', { msg }));
     }
   };
+
+  const activePetOption =
+    PET_OPTIONS.find((pet) => pet.id === selectedPet) || PET_OPTIONS[0];
+  const activePetLocalizedName = t(`pet.${activePetOption.id}.name`, {
+    defaultValue: activePetOption.vietnameseName,
+  });
+  const activePetLocalizedDesc = t(`pet.${activePetOption.id}.description`, {
+    defaultValue: activePetOption.desc,
+  });
+  const activePetTitle = t(`pet.${activePetOption.id}.title`, {
+    defaultValue: activePetOption.name,
+  });
 
   return (
     <Modal
@@ -336,9 +389,11 @@ export function SettingsModal({
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>⚙️ Cài đặt</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>
+                {t('settings.title')}
+              </Text>
               <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
-                Bảo mật, Thú cưng & Sao lưu
+                {t('settings.subtitle')}
               </Text>
             </View>
 
@@ -347,104 +402,238 @@ export function SettingsModal({
               onPress={onClose}
               style={[styles.closeBtn, { backgroundColor: theme.backgroundElement }]}
               accessibilityRole="button"
-              accessibilityLabel="Đóng cài đặt"
+              accessibilityLabel={t('settings.closeBtn')}
             >
-              <Text style={[styles.closeBtnText, { color: theme.text }]}>✕</Text>
+              <X size={20} color={theme.text} strokeWidth={2} />
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={styles.content}>
-            {/* 1. Mascot Companion Picker */}
+            {/* 0. Language Section */}
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                🐾 Thú cưng đồng hành
-              </Text>
+              <View style={styles.sectionHeaderRow}>
+                <Globe size={18} color={theme.text} strokeWidth={2} style={{ marginRight: 8 }} />
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                  {t('settings.languageSection')}
+                </Text>
+              </View>
               <Text style={[styles.sectionDesc, { color: theme.textSecondary }]}>
-                Chọn linh vật bảo vệ kho mã và tương tác cùng bạn
+                {t('settings.languageSubtitle')}
               </Text>
 
-              <View style={styles.petList}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.horizontalScroll}
+                contentContainerStyle={styles.langScrollContainer}
+              >
+                {SUPPORTED_LANGUAGES.map((lang) => {
+                  const isSelected = activeLangPref === lang.code;
+                  return (
+                    <TouchableOpacity
+                      key={lang.code}
+                      testID={`settings-lang-option-${lang.code}`}
+                      onPress={() => handleSelectLanguage(lang.code as 'system' | 'vi' | 'en')}
+                      style={[
+                        styles.langPill,
+                        {
+                          backgroundColor: isSelected
+                            ? theme.backgroundSelected
+                            : theme.backgroundElement,
+                          borderColor: isSelected ? BrandColors.primary : 'transparent',
+                        },
+                      ]}
+                      activeOpacity={0.7}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: isSelected }}
+                    >
+                      {lang.isSystem ? (
+                        <Globe
+                          size={18}
+                          color={isSelected ? BrandColors.primary : theme.text}
+                          strokeWidth={2}
+                          style={{ marginRight: 2 }}
+                        />
+                      ) : (
+                        <Text style={styles.langFlag}>{lang.flag}</Text>
+                      )}
+                      <Text
+                        style={[
+                          styles.langTitle,
+                          {
+                            color: isSelected ? BrandColors.primary : theme.text,
+                            fontWeight: isSelected ? '700' : '600',
+                          },
+                        ]}
+                      >
+                        {lang.titleKey ? t(lang.titleKey) : lang.name}
+                      </Text>
+                      {isSelected && (
+                        <Check size={16} color={BrandColors.primary} strokeWidth={2.5} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* 1. Mascot Companion Picker */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeaderRow}>
+                <PawPrint size={18} color={theme.text} strokeWidth={2} style={{ marginRight: 8 }} />
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                  {t('settings.mascotSection')}
+                </Text>
+              </View>
+              <Text style={[styles.sectionDesc, { color: theme.textSecondary }]}>
+                {t('settings.mascotSubtitle')}
+              </Text>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.horizontalScroll}
+                contentContainerStyle={styles.petScrollContainer}
+              >
                 {PET_OPTIONS.map((pet) => {
                   const isSelected = selectedPet === pet.id;
+                  const IconComp = PET_ICONS[pet.id] || Cat;
+                  const localizedName = t(`pet.${pet.id}.name`, { defaultValue: pet.vietnameseName });
+
                   return (
                     <TouchableOpacity
                       key={pet.id}
                       testID={`pet-select-${pet.id}`}
                       onPress={() => handleSelectPet(pet.id)}
+                      activeOpacity={0.7}
                       style={[
                         styles.petCard,
                         {
                           backgroundColor: isSelected
                             ? theme.backgroundSelected
                             : theme.backgroundElement,
-                          borderColor: isSelected ? '#3B82F6' : 'transparent',
+                          borderColor: isSelected ? BrandColors.primary : 'transparent',
                         },
                       ]}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: isSelected }}
                     >
-                      <Text style={styles.petEmoji}>{pet.emoji}</Text>
-                      <View style={styles.petMeta}>
-                        <View style={styles.petNameRow}>
-                          <Text style={[styles.petName, { color: theme.text }]}>
-                            {pet.vietnameseName} ({pet.name})
-                          </Text>
-                          {isSelected && (
-                            <Text style={styles.activeBadge}>✓ Đang chọn</Text>
-                          )}
+                      {isSelected && (
+                        <View style={styles.petBadge}>
+                          <Check size={10} color="#FFFFFF" strokeWidth={3} />
                         </View>
-                        <Text style={[styles.petDesc, { color: theme.textSecondary }]}>
-                          {pet.desc}
-                        </Text>
+                      )}
+                      <View
+                        style={[
+                          styles.petIconBox,
+                          isSelected && { backgroundColor: 'rgba(247, 107, 0, 0.15)' },
+                        ]}
+                      >
+                        <IconComp
+                          size={24}
+                          color={isSelected ? BrandColors.primary : theme.text}
+                          strokeWidth={2}
+                        />
                       </View>
+                      <Text
+                        style={[
+                          styles.petName,
+                          {
+                            color: isSelected ? BrandColors.primary : theme.text,
+                            fontWeight: isSelected ? '700' : '600',
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {localizedName}
+                      </Text>
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+              </ScrollView>
 
-              {onOpenAcademy && (
-                <TouchableOpacity
-                  testID="open-academy-button"
-                  onPress={onOpenAcademy}
-                  style={[styles.academyBtn, { backgroundColor: theme.backgroundElement }]}
-                >
-                  <Text style={[styles.academyBtnText, { color: theme.text }]}>
-                    🎓 Mở Pet Academy (Học bảo mật 2FA)
+              {/* Active Pet Preview Card */}
+              <View
+                style={[
+                  styles.petPreviewCard,
+                  {
+                    backgroundColor: theme.backgroundElement,
+                    borderColor: theme.backgroundSelected,
+                  },
+                ]}
+              >
+                <View style={styles.petPreviewHeader}>
+                  <View style={styles.petPreviewBadge}>
+                    <Text style={styles.petPreviewBadgeText}>{activePetTitle}</Text>
+                  </View>
+                  <Text style={[styles.petPreviewName, { color: theme.textSecondary }]}>
+                    {activePetLocalizedName}
                   </Text>
-                </TouchableOpacity>
-              )}
+                </View>
+                <Text style={[styles.petPreviewDesc, { color: theme.textSecondary }]}>
+                  {activePetLocalizedDesc}
+                </Text>
+
+                {onOpenAcademy && (
+                  <TouchableOpacity
+                    testID="open-academy-button"
+                    onPress={onOpenAcademy}
+                    style={[styles.academyBtn, { backgroundColor: theme.backgroundSelected }]}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.rowCentered}>
+                      <GraduationCap
+                        size={18}
+                        color={BrandColors.primary}
+                        strokeWidth={2}
+                        style={{ marginRight: 8 }}
+                      />
+                      <Text style={[styles.academyBtnText, { color: theme.text }]}>
+                        {t('settings.academyBtn')}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             {/* 2. Biometrics Lock */}
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                🔒 Khoá bảo vệ sinh trắc học
-              </Text>
+              <View style={styles.sectionHeaderRow}>
+                <Fingerprint size={18} color={theme.text} strokeWidth={2} style={{ marginRight: 8 }} />
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                  {t('settings.biometricSection')}
+                </Text>
+              </View>
               <Text style={[styles.sectionDesc, { color: theme.textSecondary }]}>
-                Yêu cầu Face ID, Vân tay hoặc PIN máy mỗi khi mở hoặc chuyển lại ứng dụng
+                {t('settings.biometricSubtitle')}
               </Text>
 
               <View style={[styles.settingRow, { backgroundColor: theme.backgroundElement }]}>
                 <View style={styles.settingRowText}>
                   <Text style={[styles.settingLabel, { color: theme.text }]}>
                     {bioTypes.includes('FACIAL_RECOGNITION')
-                      ? 'Khoá bằng Face ID / PIN'
-                      : 'Khoá bằng Vân tay / PIN'}
+                      ? 'Face ID / PIN'
+                      : 'Fingerprint / PIN'}
                   </Text>
                   <Text style={[styles.settingSub, { color: theme.textSecondary }]}>
                     {hasBiometrics
-                      ? 'Tự động che mờ màn hình và khoá khi thoát ra ngoài'
-                      : 'Thiết bị không hỗ trợ hoặc chưa cài sinh trắc học'}
+                      ? t('settings.biometricSubtitle')
+                      : t('settings.biometricUnavailableDesc')}
                   </Text>
                 </View>
 
                 {isBioLoading ? (
-                  <ActivityIndicator size="small" color="#3B82F6" />
+                  <ActivityIndicator size="small" color={BrandColors.primary} />
                 ) : (
                   <Switch
                     testID="biometric-lock-switch"
                     value={isBioEnabled}
                     onValueChange={handleToggleBiometrics}
                     disabled={!hasBiometrics}
-                    trackColor={{ false: '#767577', true: '#3B82F6' }}
+                    trackColor={{ false: '#767577', true: 'rgba(247, 107, 0, 0.38)' }}
+                    thumbColor={isBioEnabled ? BrandColors.primary : '#f4f3f4'}
+                    ios_backgroundColor="#767577"
                   />
                 )}
               </View>
@@ -452,11 +641,14 @@ export function SettingsModal({
 
             {/* 3. Encrypted Backup & Restore */}
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                📦 Sao lưu & Khôi phục dữ liệu
-              </Text>
+              <View style={styles.sectionHeaderRow}>
+                <Database size={18} color={theme.text} strokeWidth={2} style={{ marginRight: 8 }} />
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                  {t('settings.backupSection')}
+                </Text>
+              </View>
               <Text style={[styles.sectionDesc, { color: theme.textSecondary }]}>
-                Mã hoá toàn diện chuẩn AES-256-GCM với 100.000 vòng lặp PBKDF2
+                {t('settings.backupSubtitle')}
               </Text>
 
               <View style={styles.backupActions}>
@@ -465,7 +657,8 @@ export function SettingsModal({
                   onPress={handleStartExport}
                   style={[styles.actionBtn, styles.exportBtn]}
                 >
-                  <Text style={styles.actionBtnText}>📤 Xuất sao lưu mã hoá (.simpleotp)</Text>
+                  <Upload size={16} color="#FFFFFF" strokeWidth={2} style={{ marginRight: 6 }} />
+                  <Text style={styles.actionBtnText}>{t('settings.exportBtn')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -473,18 +666,22 @@ export function SettingsModal({
                   onPress={handleStartRestore}
                   style={[styles.actionBtn, styles.restoreBtn]}
                 >
-                  <Text style={styles.actionBtnText}>📥 Khôi phục từ tệp sao lưu</Text>
+                  <Download size={16} color={theme.text} strokeWidth={2} style={{ marginRight: 6 }} />
+                  <Text style={styles.actionBtnText}>{t('settings.restoreBtn')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
             {/* 4. About & Zero-Network Guarantee */}
             <View style={[styles.section, styles.aboutSection, { backgroundColor: theme.backgroundElement }]}>
-              <Text style={[styles.aboutTitle, { color: theme.text }]}>
-                🛡️ Cam kết Offline 100%
-              </Text>
+              <View style={styles.sectionHeaderRow}>
+                <ShieldCheck size={20} color={SemanticColors.success} strokeWidth={2} style={{ marginRight: 8 }} />
+                <Text style={[styles.aboutTitle, { color: theme.text }]}>
+                  {t('settings.offlineGuaranteeTitle')}
+                </Text>
+              </View>
               <Text style={[styles.aboutText, { color: theme.textSecondary }]}>
-                Simple OTP v1.0.0 hoàn toàn không sử dụng kết nối mạng, không gửi phân tích dữ liệu, và không lưu trữ đám mây. Mọi khoá OTP được mã hoá an toàn trong phần cứng thiết bị của bạn.
+                {t('settings.offlineGuaranteeDesc')}
               </Text>
             </View>
           </ScrollView>
@@ -494,16 +691,16 @@ export function SettingsModal({
             <View style={styles.dialogOverlay}>
               <View style={[styles.dialogCard, { backgroundColor: theme.background }]}>
                 <Text style={[styles.dialogTitle, { color: theme.text }]}>
-                  Thiết lập mật khẩu sao lưu
+                  {t('backup.exportModalTitle')}
                 </Text>
                 <Text style={[styles.dialogDesc, { color: theme.textSecondary }]}>
-                  Nhập mật khẩu để mã hoá tệp sao lưu. Bạn bắt buộc phải nhớ mật khẩu này để khôi phục sau này.
+                  {t('backup.exportModalSubtitle')}
                 </Text>
 
                 <TextInput
                   testID="export-passphrase-input"
                   style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
-                  placeholder="Mật khẩu bảo vệ (tối thiểu 6 ký tự)"
+                  placeholder={t('backup.passphrasePlaceholder')}
                   placeholderTextColor={theme.textSecondary}
                   secureTextEntry
                   value={exportPassphrase}
@@ -513,7 +710,7 @@ export function SettingsModal({
                 <TextInput
                   testID="export-confirm-passphrase-input"
                   style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
-                  placeholder="Xác nhận lại mật khẩu"
+                  placeholder={t('backup.confirmPassphrasePlaceholder')}
                   placeholderTextColor={theme.textSecondary}
                   secureTextEntry
                   value={exportConfirmPass}
@@ -528,7 +725,7 @@ export function SettingsModal({
                     onPress={() => setShowExportModal(false)}
                     style={[styles.dialogBtn, { backgroundColor: theme.backgroundElement }]}
                   >
-                    <Text style={{ color: theme.text }}>Huỷ bỏ</Text>
+                    <Text style={{ color: theme.text }}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -540,7 +737,7 @@ export function SettingsModal({
                     {isExporting ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <Text style={styles.primaryBtnText}>Xuất & Chia sẻ</Text>
+                      <Text style={styles.primaryBtnText}>{t('backup.exportConfirmBtn')}</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -553,16 +750,16 @@ export function SettingsModal({
             <View style={styles.dialogOverlay}>
               <View style={[styles.dialogCard, { backgroundColor: theme.background }]}>
                 <Text style={[styles.dialogTitle, { color: theme.text }]}>
-                  Giải mã tệp sao lưu
+                  {t('backup.restoreModalTitle')}
                 </Text>
                 <Text style={[styles.dialogDesc, { color: theme.textSecondary }]}>
-                  Tệp: {restoreFileName}
+                  {t('backup.restoreFileLabel')} {restoreFileName}
                 </Text>
 
                 <TextInput
                   testID="restore-passphrase-input"
                   style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
-                  placeholder="Nhập mật khẩu đã dùng khi sao lưu"
+                  placeholder={t('backup.restorePassPlaceholder')}
                   placeholderTextColor={theme.textSecondary}
                   secureTextEntry
                   value={restorePassphrase}
@@ -577,7 +774,7 @@ export function SettingsModal({
                     onPress={() => setShowRestoreModal(false)}
                     style={[styles.dialogBtn, { backgroundColor: theme.backgroundElement }]}
                   >
-                    <Text style={{ color: theme.text }}>Huỷ bỏ</Text>
+                    <Text style={{ color: theme.text }}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -589,7 +786,7 @@ export function SettingsModal({
                     {isRestoring ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <Text style={styles.primaryBtnText}>Giải mã</Text>
+                      <Text style={styles.primaryBtnText}>{t('backup.restoreDecryptBtn')}</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -602,10 +799,10 @@ export function SettingsModal({
             <View style={styles.dialogOverlay}>
               <View style={[styles.dialogCard, { backgroundColor: theme.background }]}>
                 <Text style={[styles.dialogTitle, { color: theme.text }]}>
-                  Tuỳ chọn nạp tài khoản
+                  {t('backup.strategyTitle')}
                 </Text>
                 <Text style={[styles.dialogDesc, { color: theme.textSecondary }]}>
-                  Tìm thấy {pendingAccounts.length} tài khoản trong tệp sao lưu. Bạn muốn nạp như thế nào?
+                  {t('backup.strategySubtitle', { count: pendingAccounts.length })}
                 </Text>
 
                 <TouchableOpacity
@@ -613,9 +810,14 @@ export function SettingsModal({
                   onPress={() => handleApplyRestore('merge')}
                   style={[styles.choiceBtn, { backgroundColor: theme.backgroundElement }]}
                 >
-                  <Text style={[styles.choiceTitle, { color: theme.text }]}>➕ Hợp nhất (Merge)</Text>
+                  <View style={styles.choiceHeaderRow}>
+                    <Plus size={16} color={BrandColors.primary} strokeWidth={2.5} style={{ marginRight: 6 }} />
+                    <Text style={[styles.choiceTitle, { color: theme.text }]}>
+                      {t('backup.mergeOptionTitle')}
+                    </Text>
+                  </View>
                   <Text style={[styles.choiceDesc, { color: theme.textSecondary }]}>
-                    Giữ các tài khoản hiện tại, cập nhật hoặc thêm tài khoản mới từ bản sao lưu.
+                    {t('backup.mergeOptionDesc')}
                   </Text>
                 </TouchableOpacity>
 
@@ -623,12 +825,12 @@ export function SettingsModal({
                   testID="restore-replace-button"
                   onPress={() => {
                     Alert.alert(
-                      'Xác nhận thay thế toàn bộ',
-                      'Thao tác này sẽ xoá sạch các tài khoản hiện tại và thay thế hoàn toàn bằng tệp sao lưu.',
+                      t('backup.replaceOptionTitle'),
+                      t('backup.replaceOptionDesc'),
                       [
-                        { text: 'Huỷ bỏ', style: 'cancel' },
+                        { text: t('common.cancel'), style: 'cancel' },
                         {
-                          text: 'Đồng ý thay thế',
+                          text: t('common.confirm'),
                           style: 'destructive',
                           onPress: () => handleApplyRestore('replace'),
                         },
@@ -637,9 +839,14 @@ export function SettingsModal({
                   }}
                   style={[styles.choiceBtn, styles.dangerChoiceBtn]}
                 >
-                  <Text style={styles.dangerChoiceTitle}>⚠️ Thay thế toàn bộ (Replace)</Text>
+                  <View style={styles.choiceHeaderRow}>
+                    <AlertTriangle size={16} color={SemanticColors.urgent} strokeWidth={2} style={{ marginRight: 6 }} />
+                    <Text style={styles.dangerChoiceTitle}>
+                      {t('backup.replaceOptionTitle')}
+                    </Text>
+                  </View>
                   <Text style={[styles.choiceDesc, { color: theme.textSecondary }]}>
-                    Xoá toàn bộ kho mã hiện tại và khôi phục chính xác từ bản sao lưu.
+                    {t('backup.replaceOptionDesc')}
                   </Text>
                 </TouchableOpacity>
 
@@ -647,7 +854,7 @@ export function SettingsModal({
                   onPress={() => setShowStrategyModal(false)}
                   style={[styles.dialogBtn, { marginTop: 12, backgroundColor: theme.backgroundElement }]}
                 >
-                  <Text style={{ textAlign: 'center', color: theme.text }}>Huỷ bỏ</Text>
+                  <Text style={{ textAlign: 'center', color: theme.text }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -712,44 +919,124 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: Spacing.one,
   },
-  petList: {
-    gap: Spacing.two,
+  horizontalScroll: {
+    marginHorizontal: -Spacing.four,
   },
-  petCard: {
+  langScrollContainer: {
+    paddingHorizontal: Spacing.four,
+    gap: Spacing.two,
+    paddingVertical: Spacing.half,
+  },
+  langPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.three,
-    borderRadius: 16,
-    borderWidth: 2,
-    gap: Spacing.three,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.three,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    gap: Spacing.one + 2,
+  },
+  langFlag: {
+    fontSize: 20,
+  },
+  langTitle: {
+    fontSize: 14,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  rowCentered: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  choiceHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  petScrollContainer: {
+    paddingHorizontal: Spacing.four,
+    gap: Spacing.one + 2,
+    paddingVertical: Spacing.half,
+  },
+  petCard: {
+    width: 104,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    gap: 6,
+  },
+  petBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: BrandColors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  petIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   petEmoji: {
-    fontSize: 32,
+    fontSize: 26,
   },
-  petMeta: {
-    flex: 1,
+  petName: {
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 16,
   },
-  petNameRow: {
+  petPreviewCard: {
+    padding: Spacing.three,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: Spacing.two,
+    gap: Spacing.two,
+  },
+  petPreviewHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: Spacing.two,
   },
-  petName: {
-    fontSize: 15,
-    fontWeight: '600',
+  petPreviewBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(247, 107, 0, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  activeBadge: {
+  petPreviewBadgeText: {
     fontSize: 12,
-    color: '#3B82F6',
     fontWeight: '700',
+    color: BrandColors.primary,
   },
-  petDesc: {
+  petPreviewName: {
     fontSize: 12,
-    marginTop: 2,
-    lineHeight: 16,
+    fontWeight: '500',
+    flexShrink: 1,
+  },
+  petPreviewDesc: {
+    fontSize: 13,
+    lineHeight: 19,
   },
   academyBtn: {
-    padding: Spacing.three,
+    padding: Spacing.three - 4,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: Spacing.one,
@@ -781,15 +1068,17 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   actionBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     padding: Spacing.three,
     borderRadius: 14,
     alignItems: 'center',
   },
   exportBtn: {
-    backgroundColor: '#1E40AF',
+    backgroundColor: BrandColors.primary,
   },
   restoreBtn: {
-    backgroundColor: '#059669',
+    backgroundColor: SemanticColors.success,
   },
   actionBtnText: {
     color: '#ffffff',
@@ -845,7 +1134,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   errorText: {
-    color: '#EF4444',
+    color: SemanticColors.urgent,
     fontSize: 12,
     fontWeight: '500',
   },
@@ -861,7 +1150,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   primaryBtn: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: BrandColors.primary,
   },
   primaryBtnText: {
     color: '#ffffff',
@@ -884,7 +1173,7 @@ const styles = StyleSheet.create({
   dangerChoiceTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#EF4444',
+    color: SemanticColors.urgent,
   },
   choiceDesc: {
     fontSize: 12,
