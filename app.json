@@ -19,7 +19,6 @@
     },
     "android": {
       "package": "com.duybk.simpleotp",
-      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#F76B00",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
