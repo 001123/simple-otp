@@ -29,8 +29,8 @@ Any backups you create are encrypted with your chosen passphrase using **PBKDF2 
 
 ## 5. Open Source Transparency
 
-Simple OTP is free and open-source software licensed under the MIT License. The complete source code is publicly inspectable and verifiable on [GitHub](https://github.com/001123/simple-otp).
+Simple OTP is free and open-source software licensed under the MIT License. The complete source code is publicly inspectable and verifiable on [GitHub](https://github.com/kd-labs-io/simple-otp).
 
 ## Contact
 
-If you have questions or concerns regarding this policy, feel free to open an issue or inquiry on our [GitHub Repository](https://github.com/001123/simple-otp).
+If you have questions or concerns regarding this policy, feel free to open an issue or inquiry on our [GitHub Repository](https://github.com/kd-labs-io/simple-otp).

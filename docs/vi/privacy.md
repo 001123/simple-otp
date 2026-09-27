@@ -29,8 +29,8 @@ Mọi tệp sao lưu do bạn tạo ra đều được bảo vệ bằng mật k
 
 ## 5. Minh bạch Mã nguồn Mở
 
-Simple OTP là phần mềm tự do nguồn mở theo giấy phép MIT. Toàn bộ mã nguồn được công khai và cộng đồng có thể kiểm tra độc lập tại [GitHub](https://github.com/001123/simple-otp).
+Simple OTP là phần mềm tự do nguồn mở theo giấy phép MIT. Toàn bộ mã nguồn được công khai và cộng đồng có thể kiểm tra độc lập tại [GitHub](https://github.com/kd-labs-io/simple-otp).
 
 ## Liên hệ
 
-Nếu bạn có bất kỳ câu hỏi nào về chính sách này, vui lòng gửi phản hồi trên [GitHub Repository](https://github.com/001123/simple-otp).
+Nếu bạn có bất kỳ câu hỏi nào về chính sách này, vui lòng gửi phản hồi trên [GitHub Repository](https://github.com/kd-labs-io/simple-otp).

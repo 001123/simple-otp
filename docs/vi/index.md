@@ -17,7 +17,7 @@ hero:
       link: /vi/guide/security-architecture
     - theme: alt
       text: Mã nguồn GitHub
-      link: https://github.com/001123/simple-otp
+      link: https://github.com/kd-labs-io/simple-otp
 
 features:
   - icon: 🛡️

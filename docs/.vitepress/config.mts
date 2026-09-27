@@ -99,7 +99,7 @@ export default defineConfig({
   themeConfig: {
     logo: '/icon.png',
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/001123/simple-otp' },
+      { icon: 'github', link: 'https://github.com/kd-labs-io/simple-otp' },
     ],
     search: {
       provider: 'local',
