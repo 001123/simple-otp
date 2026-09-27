@@ -195,7 +195,19 @@ Both Vietnamese (`assets/banners/vi`) and English (`assets/banners/en`) editions
 | File Name | Dimensions | Platform | Content Description |
 | :--- | :--- | :--- | :--- |
 | `00_feature_graphic.png` | `1024 × 500 px` | Google Play Store | Master 3D Logo, Bé Khóa mascot, golden shield, miniature safe vault, localized tagline. |
-| `01_offline_security.png` | `1080 × 1920 px` (9:16) | App Store & Google Play | **100% Offline & Face ID**: 3D phone mockup with cute skeleton OTP cards, Face ID shield. |
-| `02_qr_scanner.png` | `1080 × 1920 px` (9:16) | App Store & Google Play | **Instant QR Scanner**: 3D phone with camera viewfinder brackets, holographic laser, gallery import button. |
-| `03_pet_academy.png` | `1080 × 1920 px` (9:16) | App Store & Google Play | **Pet Academy & Mascot**: Security quiz card with Yes/No buttons, Bé Khóa & companion dialogue bubbles. |
-| `04_encrypted_backup.png` | `1080 × 1920 px` (9:16) | App Store & Google Play | **Encrypted Backup**: Military-grade PBKDF2/AES-GCM vault export dialog, golden safe with key. |
+| `01_offline_security.png` | `1080 × 1920 px` (9:16) | Google Play Store | **100% Offline & Face ID**: 3D phone mockup with cute skeleton OTP cards, Face ID shield. |
+| `02_qr_scanner.png` | `1080 × 1920 px` (9:16) | Google Play Store | **Instant QR Scanner**: 3D phone with camera viewfinder brackets, holographic laser, gallery import button. |
+| `03_pet_academy.png` | `1080 × 1920 px` (9:16) | Google Play Store | **Pet Academy & Mascot**: Security quiz card with Yes/No buttons, Bé Khóa & companion dialogue bubbles. |
+| `04_encrypted_backup.png` | `1080 × 1920 px` (9:16) | Google Play Store | **Encrypted Backup**: Military-grade PBKDF2/AES-GCM vault export dialog, golden safe with key. |
+
+### 6.3 iOS App Store Screenshots (`assets/banners/ios/`)
+
+Organized for Apple App Store Connect in Vietnamese (`assets/banners/ios/vi/`) and English (`assets/banners/ios/en/`):
+
+| File Name | Dimensions | Target Display | Content Description |
+| :--- | :--- | :--- | :--- |
+| `01_offline_security.png` | `1284 × 2778 px` | iPhone 6.7" Super Retina XDR | **100% Offline & Face ID / Biometrics**: 3D phone mockup with skeleton OTP cards & golden Face ID shield. |
+| `02_qr_scanner.png` | `1284 × 2778 px` | iPhone 6.7" Super Retina XDR | **Instant QR Scanner**: 3D phone with viewfinder laser, gallery import pill & 3D Simple OTP wordmark. |
+| `03_pet_academy.png` | `1284 × 2778 px` | iPhone 6.7" Super Retina XDR | **Pet Academy & Mascot**: Interactive security quiz card, Bé Khóa robot & Byte Dog companion. |
+| `04_encrypted_backup.png` | `1284 × 2778 px` | iPhone 6.7" Super Retina XDR | **Encrypted Backup**: Military-grade PBKDF2/AES-GCM vault export toggle & golden key safe. |
+
