@@ -1,7 +1,7 @@
 {
   "name": "simple-otp",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "dependencies": {
     "@expo/ui": "~57.0.20",
     "@noble/ciphers": "^2.4.0",

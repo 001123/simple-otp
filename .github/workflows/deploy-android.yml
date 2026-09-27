@@ -7,7 +7,7 @@ on:
         description: 'Auto submit to Google Play (Internal Testing)'
         required: true
         type: boolean
-        default: true
+        default: false
   push:
     tags:
       - 'v*.*.*'

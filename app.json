@@ -8,6 +8,7 @@
     "scheme": "simpleotp",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "vn.io.kd.simpleotp",
       "icon": "./assets/images/icon.png",
       "infoPlist": {
         "CFBundleAllowMixedLocalizations": true,
@@ -18,7 +19,7 @@
       }
     },
     "android": {
-      "package": "com.duybk.simpleotp",
+      "package": "vn.io.kd.simpleotp",
       "adaptiveIcon": {
         "backgroundColor": "#F76B00",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -91,9 +92,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "2b512aa3-6615-4176-8bda-92c5c26bb005"
+        "projectId": "1d1080bb-bc1e-4e1e-9096-7a8860bc6607"
       }
     },
-    "owner": "khuongduy1897"
+    "owner": "kd-labs-app"
   }
 }
