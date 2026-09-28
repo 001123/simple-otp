@@ -6,7 +6,11 @@
 
 import { AppState, type AppStateStatus, Platform } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
-import { isBiometricLockEnabled, authenticateWithBiometrics } from '@/services/security/biometrics';
+import {
+  isBiometricLockEnabled,
+  authenticateWithBiometrics,
+  isBiometricAuthenticating,
+} from '@/services/security/biometrics';
 
 export const SCREEN_CAPTURE_KEY = 'simpleotp_privacy_shield';
 
@@ -15,6 +19,8 @@ export type PrivacyShieldListener = (isShielded: boolean, isLocked: boolean) => 
 export class PrivacyShieldManager {
   private isShielded = false;
   private isLocked = false;
+  private wasInBackground = false;
+  private isUnlocking = false;
   private listeners: Set<PrivacyShieldListener> = new Set();
   private appStateSubscription: { remove: () => void } | null = null;
   private isScreenProtectionActive = false;
@@ -74,26 +80,49 @@ export class PrivacyShieldManager {
    * Handles React Native AppState transitions.
    */
   async handleAppStateChange(nextState: AppStateStatus): Promise<void> {
+    const prevState = this.currentAppState;
     this.currentAppState = nextState;
-    if (nextState === 'inactive' || nextState === 'background') {
+
+    if (nextState === 'inactive') {
       // Synchronously mount visual shield before OS takes multitasking snapshot
       this.isShielded = true;
       this.notify();
+    } else if (nextState === 'background') {
+      // Mark that the app was genuinely moved to background
+      this.wasInBackground = true;
+      this.isShielded = true;
+      this.notify();
     } else if (nextState === 'active') {
+      // If a biometric prompt was currently displayed, ignore AppState transitions caused by it
+      if (typeof isBiometricAuthenticating === 'function' && isBiometricAuthenticating()) {
+        return;
+      }
+
+      // If an unlock is already in progress, avoid duplicate invocation
+      if (this.isUnlocking) {
+        return;
+      }
+
+      const resumedFromBackground = this.wasInBackground;
+      this.wasInBackground = false;
+
+      // If the app only went inactive (e.g. Face ID prompt, system alert, Control Center)
+      // without entering background, do not lock the vault.
+      const isTransientInactive = prevState === 'inactive' && !resumedFromBackground;
+
       const bioEnabled = await isBiometricLockEnabled();
       // Abort if state transitioned away from active while awaiting SecureStore
       if (this.currentAppState !== 'active') return;
 
-      if (bioEnabled) {
+      if (bioEnabled && !isTransientInactive) {
         // Biometrics required: shield remains mounted, app enters locked state
         this.isShielded = true;
         this.isLocked = true;
         this.notify();
-        // Automatically request authentication
         await this.unlockWithBiometrics();
-      } else {
+      } else if (!this.isLocked) {
         if (this.currentAppState !== 'active') return;
-        // No biometrics: immediately unshield
+        // No biometrics or transient inactive transition: immediately unshield
         this.isShielded = false;
         this.isLocked = false;
         this.notify();
@@ -142,17 +171,23 @@ export class PrivacyShieldManager {
    * Prompts user with biometrics to unlock the vault and dismiss the shield.
    */
   async unlockWithBiometrics(): Promise<boolean> {
-    const res = await authenticateWithBiometrics('Mở khoá Simple OTP');
-    if (res.success) {
-      // Guard against unshielding if app transitioned away from active while prompt was shown
-      if (this.currentAppState !== 'active') return false;
+    if (this.isUnlocking) return false;
+    this.isUnlocking = true;
+    try {
+      const res = await authenticateWithBiometrics('Mở khoá Simple OTP');
+      if (res.success) {
+        // Guard against unshielding if app transitioned away from active while prompt was shown
+        if (this.currentAppState !== 'active') return false;
 
-      this.isLocked = false;
-      this.isShielded = false;
-      this.notify();
-      return true;
+        this.isLocked = false;
+        this.isShielded = false;
+        this.notify();
+        return true;
+      }
+      return false;
+    } finally {
+      this.isUnlocking = false;
     }
-    return false;
   }
 
   // Getters and helper setters for inspection and testing

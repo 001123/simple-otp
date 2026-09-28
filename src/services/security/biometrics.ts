@@ -83,6 +83,22 @@ export async function checkBiometricAvailability(): Promise<BiometricAvailabilit
   }
 }
 
+let isAuthenticating = false;
+
+/**
+ * Returns whether a biometric authentication prompt is currently in progress.
+ */
+export function isBiometricAuthenticating(): boolean {
+  return isAuthenticating;
+}
+
+/**
+ * Reset authentication state for testing purposes.
+ */
+export function _resetBiometricAuthenticatingForTest(): void {
+  isAuthenticating = false;
+}
+
 /**
  * Invokes native biometric prompt with system passcode/PIN fallback.
  */
@@ -90,6 +106,10 @@ export async function authenticateWithBiometrics(
   promptMessage = 'Xác thực để mở Simple OTP',
   options?: BiometricAuthOptions
 ): Promise<BiometricAuthResult> {
+  if (isAuthenticating) {
+    return { success: false, error: 'already_authenticating' };
+  }
+  isAuthenticating = true;
   try {
     const availability = await checkBiometricAvailability();
     if (!availability.hasHardware) {
@@ -123,6 +143,8 @@ export async function authenticateWithBiometrics(
       success: false,
       error: message || 'unknown',
     };
+  } finally {
+    isAuthenticating = false;
   }
 }
 

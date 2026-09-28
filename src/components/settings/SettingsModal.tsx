@@ -623,19 +623,24 @@ export function SettingsModal({
                   </Text>
                 </View>
 
-                {isBioLoading ? (
-                  <ActivityIndicator size="small" color={BrandColors.primary} />
-                ) : (
+                <View style={styles.switchContainer}>
+                  {isBioLoading && (
+                    <ActivityIndicator
+                      size="small"
+                      color={BrandColors.primary}
+                      style={{ marginRight: 8 }}
+                    />
+                  )}
                   <Switch
                     testID="biometric-lock-switch"
                     value={isBioEnabled}
                     onValueChange={handleToggleBiometrics}
-                    disabled={!hasBiometrics}
+                    disabled={!hasBiometrics || isBioLoading}
                     trackColor={{ false: '#767577', true: 'rgba(247, 107, 0, 0.38)' }}
                     thumbColor={isBioEnabled ? BrandColors.primary : '#f4f3f4'}
                     ios_backgroundColor="#767577"
                   />
-                )}
+                </View>
               </View>
             </View>
 
@@ -1051,6 +1056,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: Spacing.three,
     borderRadius: 16,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   settingRowText: {
     flex: 1,
