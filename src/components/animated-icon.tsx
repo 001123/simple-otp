@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import Animated, { Easing, Keyframe } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -12,6 +12,15 @@ const DURATION = 600;
 export function AnimatedSplashOverlay() {
   const [animate, setAnimate] = useState(false);
   const [visible, setVisible] = useState(true);
+
+  // Failsafe: Ensure overlay is dismissed and splash screen hidden even if animation or worklet fails
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      SplashScreen.hideAsync().catch(() => {});
+      setVisible(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (!visible) return null;
 
@@ -41,7 +50,11 @@ export function AnimatedSplashOverlay() {
       entering={splashKeyframe.duration(DURATION).withCallback((finished) => {
         'worklet';
         if (finished) {
-          scheduleOnRN(setVisible, false);
+          try {
+            scheduleOnRN(setVisible, false);
+          } catch {
+            // Ignore
+          }
         }
       })}
       style={styles.splashOverlay}>
@@ -50,9 +63,11 @@ export function AnimatedSplashOverlay() {
   ) : (
     <View
       onLayout={() => {
-        SplashScreen.hideAsync().finally(() => {
-          setAnimate(true);
-        });
+        SplashScreen.hideAsync()
+          .catch(() => {})
+          .finally(() => {
+            setAnimate(true);
+          });
       }}
       style={styles.splashOverlay}>
       {image}

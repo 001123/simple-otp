@@ -8,20 +8,58 @@
 
 import * as Crypto from 'expo-crypto';
 
-// Polyfill globalThis.crypto if missing or incomplete
-if (typeof globalThis.crypto === 'undefined') {
-  (globalThis as unknown as { crypto: Partial<globalThis.Crypto> }).crypto = {};
-}
+// Polyfill globalThis.crypto if missing or incomplete safely
+try {
+  if (typeof globalThis.crypto === 'undefined') {
+    try {
+      (globalThis as unknown as { crypto: Partial<globalThis.Crypto> }).crypto = {};
+    } catch {
+      // Ignore if crypto property cannot be set on globalThis
+    }
+  }
 
-if (!globalThis.crypto.getRandomValues) {
-  globalThis.crypto.getRandomValues = <T extends ArrayBufferView | null>(array: T): T => {
-    if (!array) return array;
-    return Crypto.getRandomValues(array as any) as unknown as T;
-  };
-}
+  if (globalThis.crypto) {
+    if (!globalThis.crypto.getRandomValues) {
+      try {
+        globalThis.crypto.getRandomValues = <T extends ArrayBufferView | null>(array: T): T => {
+          if (!array) return array;
+          return Crypto.getRandomValues(array as any) as unknown as T;
+        };
+      } catch {
+        try {
+          Object.defineProperty(globalThis.crypto, 'getRandomValues', {
+            value: <T extends ArrayBufferView | null>(array: T): T => {
+              if (!array) return array;
+              return Crypto.getRandomValues(array as any) as unknown as T;
+            },
+            configurable: true,
+            writable: true,
+          });
+        } catch {
+          // Ignore if read-only
+        }
+      }
+    }
 
-if (!globalThis.crypto.randomUUID) {
-  globalThis.crypto.randomUUID = () => Crypto.randomUUID() as `${string}-${string}-${string}-${string}-${string}`;
+    if (!globalThis.crypto.randomUUID) {
+      try {
+        globalThis.crypto.randomUUID = () =>
+          Crypto.randomUUID() as `${string}-${string}-${string}-${string}-${string}`;
+      } catch {
+        try {
+          Object.defineProperty(globalThis.crypto, 'randomUUID', {
+            value: () => Crypto.randomUUID() as `${string}-${string}-${string}-${string}-${string}`,
+            configurable: true,
+            writable: true,
+          });
+        } catch {
+          // Ignore if read-only
+        }
+      }
+    }
+  }
+} catch {
+  // Global defensive fallback ensures runtime does not crash
 }
 
 /**

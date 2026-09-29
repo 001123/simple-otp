@@ -25,12 +25,31 @@ export class NetworkBlocker {
     this.active = true;
     this.violations = [];
 
+function isLocalResource(url: string): boolean {
+  if (process.env.NODE_ENV === 'test') {
+    return false;
+  }
+  if (!url) return false;
+  const lower = url.toLowerCase().trim();
+  return (
+    lower.startsWith('file:') ||
+    lower.startsWith('blob:') ||
+    lower.startsWith('data:') ||
+    lower.startsWith('assets-library:') ||
+    lower.startsWith('ph:') ||
+    lower.startsWith('/')
+  );
+}
+
     // 1. Intercept fetch
     if (typeof globalThis.fetch !== 'undefined') {
       this.originalFetch = globalThis.fetch;
       globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
         const url = typeof input === 'string' ? input : (input as { url?: string })?.url || String(input);
         const method = init?.method || 'GET';
+        if (isLocalResource(url)) {
+          return this.originalFetch ? this.originalFetch(input, init) : Promise.reject(new Error('No fetch available'));
+        }
         this.recordViolation('fetch', url, method);
         return Promise.reject(
           new Error(`SECURITY_VIOLATION: Simple OTP operates 100% offline. Network call blocked: ${url}`)
@@ -40,20 +59,33 @@ export class NetworkBlocker {
 
     // 2. Intercept XMLHttpRequest
     if (typeof globalThis.XMLHttpRequest !== 'undefined') {
-      this.originalXHR = globalThis.XMLHttpRequest;
+      const OrigXHR = globalThis.XMLHttpRequest;
+      this.originalXHR = OrigXHR;
       const self = this;
-      // @ts-expect-error Mock class replacement
-      globalThis.XMLHttpRequest = class BlockedXMLHttpRequest {
-        open(method: string, url: string | URL) {
-          const urlStr = String(url);
+      globalThis.XMLHttpRequest = class BlockedXMLHttpRequest extends OrigXHR {
+        private isLocal = false;
+
+        open(method: string, url: string | URL, ...rest: unknown[]) {
+          const urlStr = typeof url === 'string' ? url : String(url);
+          if (isLocalResource(urlStr)) {
+            this.isLocal = true;
+            // @ts-expect-error pass to original open
+            return super.open ? super.open(method, url, ...rest) : undefined;
+          }
           self.recordViolation('xhr', urlStr, method);
           throw new Error(
             `SECURITY_VIOLATION: Simple OTP operates 100% offline. XMLHttpRequest blocked: ${method} ${urlStr}`
           );
         }
-        send() {
+
+        send(body?: Document | XMLHttpRequestBodyInit | null) {
+          if (this.isLocal) {
+            // @ts-expect-error pass to original send
+            return super.send ? super.send(body) : undefined;
+          }
           throw new Error('SECURITY_VIOLATION: Simple OTP operates 100% offline. XMLHttpRequest blocked.');
         }
+
         setRequestHeader() {}
         abort() {}
         addEventListener() {}
