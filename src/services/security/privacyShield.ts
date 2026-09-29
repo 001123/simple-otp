@@ -176,8 +176,8 @@ export class PrivacyShieldManager {
     try {
       const res = await authenticateWithBiometrics('Mở khoá Simple OTP');
       if (res.success) {
-        // Guard against unshielding if app transitioned away from active while prompt was shown
-        if (this.currentAppState !== 'active') return false;
+        // Guard against unshielding only if app was genuinely sent to background while prompt was shown
+        if (this.currentAppState === 'background') return false;
 
         this.isLocked = false;
         this.isShielded = false;

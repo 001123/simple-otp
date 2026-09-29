@@ -284,9 +284,6 @@ export default function SingleScreenDashboard() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: bgColor }]} edges={['top', 'left', 'right']}>
-      {/* Root-Level Privacy Shield Overlay */}
-      <PrivacyShield />
-
       {/* Top Header */}
       <View style={[styles.headerContainer, { backgroundColor: headerBg }]}>
         <View style={styles.topRow}>
@@ -509,6 +506,9 @@ export default function SingleScreenDashboard() {
         visible={showWelcomeModal}
         onComplete={() => setShowWelcomeModal(false)}
       />
+
+      {/* Root-Level Privacy Shield Overlay */}
+      <PrivacyShield />
     </SafeAreaView>
   );
 }
