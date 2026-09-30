@@ -7,7 +7,8 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useTranslation } from 'react-i18next';
 import {
   GraduationCap,
@@ -32,12 +33,13 @@ import { BrandColors, SemanticColors } from '@/constants/theme';
 import { getAcademyLessons } from '@/services/pet/petAcademyData';
 import type { AcademyLesson, PetAcademyModalProps } from '@/types/pet';
 
-export function PetAcademyModal({
+function PetAcademyModalContent({
   visible,
   onClose,
   initialLessonId = 'lesson-1',
   activePetId: _activePetId = 'cipher-cat',
 }: PetAcademyModalProps) {
+  const insets = useSafeAreaInsets();
   const { t, i18n } = useTranslation();
   const theme = useTheme();
   const scheme = useColorScheme();
@@ -133,20 +135,27 @@ export function PetAcademyModal({
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="fullScreen"
-      onRequestClose={onClose}
-      accessibilityLabel={t('academy.modalTitle')}
-      testID="pet-academy-modal"
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.background,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
     >
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.background }]}
-        edges={['top', 'bottom', 'left', 'right']}
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+
+      {/* Header with Safe Area top padding */}
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: Math.max(insets.top, 16) + 6,
+          },
+        ]}
       >
-        {/* Header */}
-        <View style={styles.header}>
           <View style={styles.headerTitleContainer}>
             <View style={styles.headerTitleRow}>
               <GraduationCap size={22} color={BrandColors.primary} strokeWidth={2} style={{ marginRight: 8 }} />
@@ -410,8 +419,16 @@ export function PetAcademyModal({
             </View>
           </ScrollView>
 
-          {/* Bottom Navigation Controls */}
-          <View style={[styles.footerBar, { borderTopColor: theme.backgroundElement }]}>
+          {/* Bottom Navigation Controls with Safe Area bottom padding */}
+          <View
+            style={[
+              styles.footerBar,
+              {
+                borderTopColor: theme.backgroundElement,
+                paddingBottom: Math.max(insets.bottom, 14) + 6,
+              },
+            ]}
+          >
             <TouchableOpacity
               testID="pet-academy-prev-button"
               onPress={handlePrev}
@@ -485,7 +502,30 @@ export function PetAcademyModal({
               )}
             </TouchableOpacity>
           </View>
-        </SafeAreaView>
+        </View>
+  );
+}
+
+const DEFAULT_INITIAL_METRICS = {
+  insets: { top: 0, bottom: 0, left: 0, right: 0 },
+  frame: { x: 0, y: 0, width: 0, height: 0 },
+};
+
+export function PetAcademyModal(props: PetAcademyModalProps) {
+  const { t } = useTranslation();
+
+  return (
+    <Modal
+      visible={props.visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={props.onClose}
+      accessibilityLabel={t('academy.modalTitle')}
+      testID="pet-academy-modal"
+    >
+      <SafeAreaProvider initialMetrics={DEFAULT_INITIAL_METRICS}>
+        <PetAcademyModalContent {...props} />
+      </SafeAreaProvider>
     </Modal>
   );
 }
@@ -760,7 +800,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingTop: 14,
     borderTopWidth: 1,
   },
   navButton: {
